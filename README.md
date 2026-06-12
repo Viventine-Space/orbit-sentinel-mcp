@@ -8,6 +8,17 @@ An API key is required. Beta access: <https://console.viventine.com>.
 
 ## Install
 
+### Homebrew (macOS — recommended)
+
+```bash
+brew install --cask acaracappa/tap/orbit-sentinel-mcp
+```
+
+Installs to `$(brew --prefix)/bin/orbit-sentinel-mcp`, handles the quarantine
+flag for you, and upgrades with `brew upgrade`.
+
+### Manual download
+
 Download the archive for your platform from the
 [latest release](https://github.com/acaracappa/orbit-sentinel-mcp/releases/latest),
 then:

@@ -33,5 +33,25 @@ checksum:
 release:
   prerelease: auto
 
+# Publishes a cask to acaracappa/homebrew-tap on each release.
+# Needs the HOMEBREW_TAP_TOKEN secret (PAT with write access to the tap).
+# The post-install hook clears macOS quarantine since the binary is
+# not notarized yet.
+homebrew_casks:
+  - name: orbit-sentinel-mcp
+    repository:
+      owner: acaracappa
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    homepage: https://github.com/acaracappa/orbit-sentinel-mcp
+    description: "MCP server for Orbit Sentinel — space regulatory filings from FCC, ITU, UNOOSA, FAA-AST"
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/orbit-sentinel-mcp"]
+          end
+
 changelog:
   use: github-native
