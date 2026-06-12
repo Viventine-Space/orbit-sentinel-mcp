@@ -1,0 +1,37 @@
+version: 2
+
+project_name: orbit-sentinel-mcp
+
+builds:
+  - binary: orbit-sentinel-mcp
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  # No {{ .Version }} in the name — console links use
+  # releases/latest/download/<name>, which requires stable asset names.
+  - name_template: "orbit-sentinel-mcp_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+# Pre-release tags (e.g. v0.2.0-rc1) must never become `latest` —
+# the console's releases/latest/download URLs would serve the RC.
+release:
+  prerelease: auto
+
+changelog:
+  use: github-native
