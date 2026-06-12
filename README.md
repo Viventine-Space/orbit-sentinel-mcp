@@ -6,6 +6,9 @@ queryable from Claude Desktop, Claude Code, Cursor, or any MCP client.
 
 An API key is required. Beta access: <https://console.viventine.com>.
 
+The server is a thin, open-source (MIT) stdio client of the public REST API —
+five Go files, easy to audit before you run it.
+
 ## Install
 
 ### Homebrew (macOS — recommended)
