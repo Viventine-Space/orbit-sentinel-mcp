@@ -95,6 +95,28 @@ type getDossierInput struct {
 	ID string `json:"id" jsonschema:"Entity UUID"`
 }
 
+type searchSatellitesInput struct {
+	Name       string `json:"name,omitempty" jsonschema:"Substring match on satellite name"`
+	Operator   string `json:"operator,omitempty" jsonschema:"Substring match on operator name (e.g. SpaceX); note many rows use a country code (US, CIS, PRC) as the operator"`
+	Country    string `json:"country,omitempty" jsonschema:"Operator country code (exact match)"`
+	OrbitClass string `json:"orbit_class,omitempty" jsonschema:"Orbit class (e.g. LEO, MEO, GEO)"`
+	Status     string `json:"status,omitempty" jsonschema:"Orbital status (e.g. active, decayed)"`
+	COSPAR     string `json:"cospar,omitempty" jsonschema:"COSPAR / international designator (exact match)"`
+	NORAD      string `json:"norad,omitempty" jsonschema:"NORAD catalog id (integer)"`
+	EntityID   string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
+	Limit      int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+}
+
+type searchGroundStationsInput struct {
+	Near     string `json:"near,omitempty" jsonschema:"Proximity anchor as 'lat,lon' (e.g. '38.9,-77.0'); returns stations within radius_km ordered by distance"`
+	RadiusKM string `json:"radius_km,omitempty" jsonschema:"Search radius in km for near= (default 500)"`
+	Name     string `json:"name,omitempty" jsonschema:"Substring match on station name"`
+	Band     string `json:"band,omitempty" jsonschema:"Frequency band, exact match against the station's band list (e.g. Ku)"`
+	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator entity name"`
+	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+}
+
 type researchInput struct {
 	Question string `json:"question" jsonschema:"Natural language question about space regulatory filings, entities, or spectrum"`
 	Focus    string `json:"focus,omitempty" jsonschema:"Optional focus area: filing, entity, spectrum, or general (default: general)"`
@@ -851,6 +873,43 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		data, err := client.GetEntityDossier(ctx, input.ID)
 		if err != nil {
 			return textResult("Error fetching dossier: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "search_satellites",
+		Description: "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, COSPAR, or NORAD id. Joined to the resolved operator entity. Use for 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSatellitesInput) (*mcp.CallToolResult, any, error) {
+		params := map[string]string{
+			"name": input.Name, "operator": input.Operator, "country": input.Country,
+			"orbit_class": input.OrbitClass, "status": input.Status,
+			"cospar": input.COSPAR, "norad": input.NORAD, "entity_id": input.EntityID,
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
+		}
+		data, err := client.SearchSatellites(ctx, params)
+		if err != nil {
+			return textResult("Error searching satellites: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "search_ground_stations",
+		Description: "Search ground / earth stations by name, frequency band, operator entity, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Use for 'earth stations within 200km of 38.9,-77.0' or an operator's gateway footprint. Proximity covers only stations with known coordinates.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchGroundStationsInput) (*mcp.CallToolResult, any, error) {
+		params := map[string]string{
+			"near": input.Near, "radius_km": input.RadiusKM, "name": input.Name,
+			"band": input.Band, "operator": input.Operator, "entity_id": input.EntityID,
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
+		}
+		data, err := client.SearchGroundStations(ctx, params)
+		if err != nil {
+			return textResult("Error searching ground stations: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})

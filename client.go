@@ -129,6 +129,16 @@ func (c *APIClient) GetEntityDossier(ctx context.Context, id string) (json.RawMe
 	return c.doGet(ctx, "/api/v1/entities/"+url.PathEscape(id)+"/dossier")
 }
 
+// SearchSatellites calls GET /api/v1/satellites.
+func (c *APIClient) SearchSatellites(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/satellites", params))
+}
+
+// SearchGroundStations calls GET /api/v1/ground-stations.
+func (c *APIClient) SearchGroundStations(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/ground-stations", params))
+}
+
 // SemanticSearchParams holds parameters for semantic search.
 type SemanticSearchParams struct {
 	Query         string
