@@ -63,6 +63,38 @@ type getEntityProfileInput struct {
 	FiledBefore string `json:"filed_before,omitempty" jsonschema:"Filter filing stats to filings before this date (YYYY-MM-DD)"`
 }
 
+type searchSpectrumInput struct {
+	FreqLowMHz   string `json:"freq_low_mhz,omitempty" jsonschema:"Lower bound of the band to search, in MHz"`
+	FreqHighMHz  string `json:"freq_high_mhz,omitempty" jsonschema:"Upper bound of the band to search, in MHz"`
+	Agency       string `json:"agency,omitempty" jsonschema:"Filter by source agency (FCC, ITU, ...)"`
+	Direction    string `json:"direction,omitempty" jsonschema:"Filter by direction (e.g. uplink, downlink)"`
+	Polarization string `json:"polarization,omitempty" jsonschema:"Filter by polarization"`
+	Holder       string `json:"holder,omitempty" jsonschema:"Substring match on the allocation holder (applicant entity)"`
+	Limit        int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+}
+
+type searchSECInput struct {
+	Ticker   string `json:"ticker,omitempty" jsonschema:"Company ticker (e.g. ASTS)"`
+	CIK      string `json:"cik,omitempty" jsonschema:"SEC CIK number"`
+	Company  string `json:"company,omitempty" jsonschema:"Substring match on company name"`
+	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved entity UUID"`
+	FormType string `json:"form_type,omitempty" jsonschema:"SEC form type (e.g. 8-K, 10-Q, 10-K)"`
+	Since    string `json:"since,omitempty" jsonschema:"Only filings on/after this date (YYYY-MM-DD)"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+}
+
+type searchScreeningInput struct {
+	EntityID      string `json:"entity_id,omitempty" jsonschema:"Filter by resolved entity UUID"`
+	Name          string `json:"name,omitempty" jsonschema:"Substring match on entity or matched name"`
+	List          string `json:"list,omitempty" jsonschema:"Substring match on screening list source (e.g. SDN, Entity List, ITAR)"`
+	MinSimilarity string `json:"min_similarity,omitempty" jsonschema:"Minimum match similarity 0-1 (e.g. 0.9)"`
+	Limit         int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+}
+
+type getDossierInput struct {
+	ID string `json:"id" jsonschema:"Entity UUID"`
+}
+
 type researchInput struct {
 	Question string `json:"question" jsonschema:"Natural language question about space regulatory filings, entities, or spectrum"`
 	Focus    string `json:"focus,omitempty" jsonschema:"Optional focus area: filing, entity, spectrum, or general (default: general)"`
@@ -289,26 +321,26 @@ type entityLinkItem struct {
 }
 
 type entityProfile struct {
-	ID              string              `json:"id"`
-	CanonicalName   string              `json:"canonical_name"`
-	Aliases         []string            `json:"aliases"`
-	EntityType      *string             `json:"entity_type"`
-	Country         *string             `json:"country"`
-	SECCIK          *string             `json:"sec_cik"`
-	FCCFRN          *string             `json:"fcc_frn"`
-	CoresFRN        *string             `json:"cores_frn"`
-	Website         *string             `json:"website"`
-	FilingCount     int                 `json:"filing_count"`
-	FilingStats     map[string]int      `json:"filing_stats"`
-	EarliestFiling  *string             `json:"earliest_filing"`
-	LatestFiling    *string             `json:"latest_filing"`
-	RelatedEntities []relatedEntityItem `json:"related_entities"`
-	Satellites      []satelliteItem     `json:"satellites"`
-	EntityLinks     []entityLinkItem    `json:"entity_links"`
-	Dockets         []docketItem        `json:"dockets"`
-	InsuranceRisk    *insuranceRiskData    `json:"insurance_risk,omitempty"`
-	IndustryData     []marketDataItem      `json:"industry_data,omitempty"`
-	ScreeningMatches []screeningMatchItem  `json:"screening_matches,omitempty"`
+	ID               string               `json:"id"`
+	CanonicalName    string               `json:"canonical_name"`
+	Aliases          []string             `json:"aliases"`
+	EntityType       *string              `json:"entity_type"`
+	Country          *string              `json:"country"`
+	SECCIK           *string              `json:"sec_cik"`
+	FCCFRN           *string              `json:"fcc_frn"`
+	CoresFRN         *string              `json:"cores_frn"`
+	Website          *string              `json:"website"`
+	FilingCount      int                  `json:"filing_count"`
+	FilingStats      map[string]int       `json:"filing_stats"`
+	EarliestFiling   *string              `json:"earliest_filing"`
+	LatestFiling     *string              `json:"latest_filing"`
+	RelatedEntities  []relatedEntityItem  `json:"related_entities"`
+	Satellites       []satelliteItem      `json:"satellites"`
+	EntityLinks      []entityLinkItem     `json:"entity_links"`
+	Dockets          []docketItem         `json:"dockets"`
+	InsuranceRisk    *insuranceRiskData   `json:"insurance_risk,omitempty"`
+	IndustryData     []marketDataItem     `json:"industry_data,omitempty"`
+	ScreeningMatches []screeningMatchItem `json:"screening_matches,omitempty"`
 }
 
 type screeningMatchItem struct {
@@ -323,10 +355,10 @@ type screeningMatchItem struct {
 }
 
 type insuranceRiskData struct {
-	FAAMPL       *faaMPLData       `json:"faa_mpl,omitempty"`
-	FCCBonds     *fccBondsData     `json:"fcc_bonds,omitempty"`
-	LossHistory  []lossEventData   `json:"loss_history,omitempty"`
-	AnomalyCount int               `json:"anomaly_count"`
+	FAAMPL       *faaMPLData     `json:"faa_mpl,omitempty"`
+	FCCBonds     *fccBondsData   `json:"fcc_bonds,omitempty"`
+	LossHistory  []lossEventData `json:"loss_history,omitempty"`
+	AnomalyCount int             `json:"anomaly_count"`
 }
 
 type faaMPLData struct {
@@ -354,11 +386,11 @@ type fccBondsData struct {
 
 type lossEventData struct {
 	Source    string `json:"source"`
-	Type     string `json:"type"`
-	Year     int    `json:"year"`
-	Operator string `json:"operator"`
-	Vehicle  string `json:"vehicle"`
-	Mission  string `json:"mission"`
+	Type      string `json:"type"`
+	Year      int    `json:"year"`
+	Operator  string `json:"operator"`
+	Vehicle   string `json:"vehicle"`
+	Mission   string `json:"mission"`
 	AmountUSD *int64 `json:"amount_usd,omitempty"`
 }
 
@@ -395,10 +427,10 @@ type semanticResult struct {
 type statusResponse struct {
 	Status   string `json:"status"`
 	Database struct {
-		Connected        bool   `json:"connected"`
+		Connected         bool   `json:"connected"`
 		ActiveConnections int    `json:"active_connections"`
 		TotalConnections  int    `json:"total_connections"`
-		DatabaseSize     string `json:"database_size"`
+		DatabaseSize      string `json:"database_size"`
 	} `json:"database"`
 	Pipeline struct {
 		Pending    int `json:"pending"`
@@ -756,6 +788,85 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 		return textResult(formatBondPortfolio(summary, summaryErr, portfolio, portfolioErr, faaData)), nil, nil
 	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "search_spectrum",
+		Description: "Find which entities hold a frequency band. Given a range in MHz, returns spectrum allocations overlapping it, joined to the source filing and applicant — e.g. 'who is allocated 11700-12200 MHz downlink?'. Filter by agency, direction, polarization, or holder name.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSpectrumInput) (*mcp.CallToolResult, any, error) {
+		params := map[string]string{
+			"freq_low_mhz": input.FreqLowMHz, "freq_high_mhz": input.FreqHighMHz,
+			"agency": input.Agency, "direction": input.Direction,
+			"polarization": input.Polarization, "holder": input.Holder,
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
+		}
+		data, err := client.SearchSpectrum(ctx, params)
+		if err != nil {
+			return textResult("Error searching spectrum: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "search_sec_filings",
+		Description: "Search SEC filings for tracked space companies (8-K material events, 10-Q, 10-K). Filter by ticker, CIK, company name, resolved entity, form type, or date. Use for financial signals — e.g. recent 8-Ks for a satellite operator.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSECInput) (*mcp.CallToolResult, any, error) {
+		params := map[string]string{
+			"ticker": input.Ticker, "cik": input.CIK, "company": input.Company,
+			"entity_id": input.EntityID, "form_type": input.FormType, "since": input.Since,
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
+		}
+		data, err := client.SearchSECFilings(ctx, params)
+		if err != nil {
+			return textResult("Error searching SEC filings: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "search_screening",
+		Description: "Check entities against consolidated sanctions / export-control screening lists (OFAC SDN, BIS Entity List, ITAR Debarred, etc.). Filter by entity, name, list source, or minimum match similarity. Use for compliance / due-diligence questions.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchScreeningInput) (*mcp.CallToolResult, any, error) {
+		params := map[string]string{
+			"entity_id": input.EntityID, "name": input.Name,
+			"list": input.List, "min_similarity": input.MinSimilarity,
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
+		}
+		data, err := client.SearchScreening(ctx, params)
+		if err != nil {
+			return textResult("Error searching screening lists: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "get_entity_dossier",
+		Description: "Get a cross-source dossier for an entity (by UUID): regulatory filings, SEC financial signals, sanctions/export-control screening hits, and asset footprint (satellites, ground stations, federal awards, surety bonds) — counts plus recent samples in one call. The most complete single view of an operator.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input getDossierInput) (*mcp.CallToolResult, any, error) {
+		data, err := client.GetEntityDossier(ctx, input.ID)
+		if err != nil {
+			return textResult("Error fetching dossier: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+}
+
+// formatJSON pretty-prints an API JSON response for the model to consume.
+func formatJSON(data json.RawMessage) string {
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return string(data)
+	}
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return string(data)
+	}
+	return string(b)
 }
 
 // --- Formatting functions ---

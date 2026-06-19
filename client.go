@@ -109,6 +109,26 @@ func (c *APIClient) GetFiling(ctx context.Context, id string) (json.RawMessage, 
 	return c.doGet(ctx, "/api/v1/filings/"+url.PathEscape(id))
 }
 
+// SearchSpectrum calls GET /api/v1/spectrum.
+func (c *APIClient) SearchSpectrum(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/spectrum", params))
+}
+
+// SearchSECFilings calls GET /api/v1/sec/filings.
+func (c *APIClient) SearchSECFilings(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/sec/filings", params))
+}
+
+// SearchScreening calls GET /api/v1/screening.
+func (c *APIClient) SearchScreening(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/screening", params))
+}
+
+// GetEntityDossier calls GET /api/v1/entities/{id}/dossier.
+func (c *APIClient) GetEntityDossier(ctx context.Context, id string) (json.RawMessage, error) {
+	return c.doGet(ctx, "/api/v1/entities/"+url.PathEscape(id)+"/dossier")
+}
+
 // SemanticSearchParams holds parameters for semantic search.
 type SemanticSearchParams struct {
 	Query         string
