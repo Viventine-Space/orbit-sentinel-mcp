@@ -110,10 +110,11 @@ type searchSatellitesInput struct {
 type searchGroundStationsInput struct {
 	Near     string `json:"near,omitempty" jsonschema:"Proximity anchor as 'lat,lon' (e.g. '38.9,-77.0'); returns stations within radius_km ordered by distance"`
 	RadiusKM string `json:"radius_km,omitempty" jsonschema:"Search radius in km for near= (default 500)"`
-	Name     string `json:"name,omitempty" jsonschema:"Substring match on station name"`
-	Band     string `json:"band,omitempty" jsonschema:"Frequency band, exact match against the station's band list (e.g. Ku)"`
-	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator entity name"`
-	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
+	Name     string `json:"name,omitempty" jsonschema:"Substring match on station name / FCC call sign"`
+	Band     string `json:"band,omitempty" jsonschema:"Frequency band, exact match against the station's band list (e.g. Ku); requires source=extracted"`
+	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator / licensee name"`
+	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID; requires source=extracted"`
+	Source   string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (authoritative FCC IBFS registry, reliable coordinates) or 'extracted' (entity-linked, LLM-extracted from filings, carries bands). Defaults to fcc for proximity, extracted for band/entity searches."`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
 }
 
@@ -898,11 +899,12 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_ground_stations",
-		Description: "Search ground / earth stations by name, frequency band, operator entity, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Use for 'earth stations within 200km of 38.9,-77.0' or an operator's gateway footprint. Proximity covers only stations with known coordinates.",
+		Description: "Search ground / earth stations by name, frequency band, operator, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Proximity defaults to the authoritative FCC IBFS registry (reliable coordinates); band/entity searches use the entity-linked extracted set. Each result is labeled with its source. Use for 'earth stations within 200km of 38.9,-77.0' or an operator's gateway footprint.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchGroundStationsInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"near": input.Near, "radius_km": input.RadiusKM, "name": input.Name,
 			"band": input.Band, "operator": input.Operator, "entity_id": input.EntityID,
+			"source": input.Source,
 		}
 		if input.Limit > 0 {
 			params["limit"] = strconv.Itoa(input.Limit)
