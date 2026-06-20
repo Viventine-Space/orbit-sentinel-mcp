@@ -92,7 +92,9 @@ type searchScreeningInput struct {
 }
 
 type getDossierInput struct {
-	ID string `json:"id" jsonschema:"Entity UUID"`
+	ID               string `json:"id" jsonschema:"Entity UUID"`
+	IncludeFamily    bool   `json:"include_family,omitempty" jsonschema:"Roll the dossier up across the entity's corporate family (same legal entity grouped by shared CIK/FRN or matching name). Default false."`
+	FamilyConfidence string `json:"family_confidence,omitempty" jsonschema:"Family grouping strictness when include_family=true: 'high' (default; exact name / shared identifier) or 'medium' (also groups normalized-name matches like 'AT&T INC.' with 'AT&T Corp.')."`
 }
 
 type searchSatellitesInput struct {
@@ -880,9 +882,16 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "get_entity_dossier",
-		Description: "Get a cross-source dossier for an entity (by UUID): regulatory filings, SEC financial signals, sanctions/export-control screening hits, and asset footprint (satellites, ground stations, federal awards, surety bonds) — counts plus recent samples in one call. The most complete single view of an operator.",
+		Description: "Get a cross-source dossier for an entity (by UUID): regulatory filings, SEC financial signals, sanctions/export-control screening hits, and asset footprint (satellites, ground stations, federal awards, surety bonds) — counts plus recent samples in one call. The most complete single view of an operator. Set include_family=true to roll the totals up across the entity's corporate family.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input getDossierInput) (*mcp.CallToolResult, any, error) {
-		data, err := client.GetEntityDossier(ctx, input.ID)
+		params := map[string]string{}
+		if input.IncludeFamily {
+			params["include_family"] = "true"
+		}
+		if input.FamilyConfidence != "" {
+			params["family_confidence"] = input.FamilyConfidence
+		}
+		data, err := client.GetEntityDossier(ctx, input.ID, params)
 		if err != nil {
 			return textResult("Error fetching dossier: " + err.Error()), nil, nil
 		}

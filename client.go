@@ -124,9 +124,10 @@ func (c *APIClient) SearchScreening(ctx context.Context, params map[string]strin
 	return c.doGet(ctx, buildPath("/api/v1/screening", params))
 }
 
-// GetEntityDossier calls GET /api/v1/entities/{id}/dossier.
-func (c *APIClient) GetEntityDossier(ctx context.Context, id string) (json.RawMessage, error) {
-	return c.doGet(ctx, "/api/v1/entities/"+url.PathEscape(id)+"/dossier")
+// GetEntityDossier calls GET /api/v1/entities/{id}/dossier with optional params
+// (include_family, family_confidence).
+func (c *APIClient) GetEntityDossier(ctx context.Context, id string, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/entities/"+url.PathEscape(id)+"/dossier", params))
 }
 
 // SearchSatellites calls GET /api/v1/satellites.
