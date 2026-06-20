@@ -107,6 +107,17 @@ type searchSatellitesInput struct {
 	Limit      int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
 }
 
+type searchFederalAwardsInput struct {
+	Recipient string `json:"recipient,omitempty" jsonschema:"Substring match on recipient/company name (e.g. boeing)"`
+	Agency    string `json:"agency,omitempty" jsonschema:"Substring match on awarding/sub/funding agency (e.g. NASA, Department of Defense)"`
+	AwardType string `json:"award_type,omitempty" jsonschema:"Award type: 'contract' or 'idv'"`
+	NAICS     string `json:"naics,omitempty" jsonschema:"NAICS code prefix (e.g. 5415 for computer systems design)"`
+	EntityID  string `json:"entity_id,omitempty" jsonschema:"Filter by resolved recipient entity UUID"`
+	MinAmount string `json:"min_amount,omitempty" jsonschema:"Minimum award amount in USD (e.g. 1000000000 for $1B+)"`
+	Since     string `json:"since,omitempty" jsonschema:"Only awards starting on/after this date (YYYY-MM-DD)"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+}
+
 type searchGroundStationsInput struct {
 	Near     string `json:"near,omitempty" jsonschema:"Proximity anchor as 'lat,lon' (e.g. '38.9,-77.0'); returns stations within radius_km ordered by distance"`
 	RadiusKM string `json:"radius_km,omitempty" jsonschema:"Search radius in km for near= (default 500)"`
@@ -912,6 +923,25 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		data, err := client.SearchGroundStations(ctx, params)
 		if err != nil {
 			return textResult("Error searching ground stations: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "search_federal_awards",
+		Description: "Search U.S. federal awards (USAspending contracts + IDVs) by recipient, agency, award type, NAICS, or minimum amount, joined to the resolved recipient entity. Ordered by award amount (largest first). Use for 'NASA contracts to Boeing over $1B' or an operator's federal funding footprint.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchFederalAwardsInput) (*mcp.CallToolResult, any, error) {
+		params := map[string]string{
+			"recipient": input.Recipient, "agency": input.Agency, "award_type": input.AwardType,
+			"naics": input.NAICS, "entity_id": input.EntityID,
+			"min_amount": input.MinAmount, "since": input.Since,
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
+		}
+		data, err := client.SearchFederalAwards(ctx, params)
+		if err != nil {
+			return textResult("Error searching federal awards: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})

@@ -139,6 +139,11 @@ func (c *APIClient) SearchGroundStations(ctx context.Context, params map[string]
 	return c.doGet(ctx, buildPath("/api/v1/ground-stations", params))
 }
 
+// SearchFederalAwards calls GET /api/v1/federal-awards.
+func (c *APIClient) SearchFederalAwards(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/federal-awards", params))
+}
+
 // SemanticSearchParams holds parameters for semantic search.
 type SemanticSearchParams struct {
 	Query         string
