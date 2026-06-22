@@ -1,0 +1,82 @@
+[
+  {
+    "name": "research",
+    "desc": "Primary research tool — searches filings, entities, and semantic index in parallel. Use this FIRST for any question. Pass the agency parameter for agency-specific questions (e.g., agency=\"FCC\" for FCC questions)."
+  },
+  {
+    "name": "search_filings",
+    "desc": "Search space regulatory filings by keyword, agency, type, status, and date range. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies."
+  },
+  {
+    "name": "get_filing_detail",
+    "desc": "Get full details of a specific regulatory filing including spectrum data, orbital parameters, ground stations, signals, related filings, attachments, and (for policy filings) executive summary, overall stance, and structured arguments."
+  },
+  {
+    "name": "search_positions",
+    "desc": "Search LLM-extracted policy arguments across COMMENT / REPLY / PETITION filings. Filter by docket, overall stance, argument type, target party, or filer. Use this to answer questions like 'who opposed X?', 'what did SpaceX argue in 25-306?', 'which filings support modular satellite licensing?'. Returns one row per (filing, argument)."
+  },
+  {
+    "name": "search_semantic",
+    "desc": "Semantic vector search across filing text using natural language. Uses nomic-embed-text-v1.5 embeddings to find filings by meaning, not just keywords. Note: FCC filings have limited embedding coverage — use search_filings for FCC keyword search."
+  },
+  {
+    "name": "search_entities",
+    "desc": "Search regulatory entities (companies, operators, manufacturers, governments) by name, type, or country. Supports fuzzy name matching."
+  },
+  {
+    "name": "get_entity_profile",
+    "desc": "Get a detailed entity profile including filing history by agency, related entities (co-filers), linked satellites, and cross-references."
+  },
+  {
+    "name": "get_system_status",
+    "desc": "Get system health status including database connectivity, pipeline queue depth, and per-source crawl health."
+  },
+  {
+    "name": "get_top_filers",
+    "desc": "Get the top filing entities ranked by number of filings. Filter by agency and date range. Use for questions about who files the most, biggest players, or filing rankings."
+  },
+  {
+    "name": "get_filing_distribution",
+    "desc": "Get filing count distribution by filing type. Filter by agency and date range. Use for questions about what types of filings are most common."
+  },
+  {
+    "name": "get_filing_trends",
+    "desc": "Get filing volume trends over time periods with optional top movers (entities with biggest changes). Use for questions about growth, trends, emerging players, or year-over-year comparisons."
+  },
+  {
+    "name": "get_launch_history",
+    "desc": "Get launch history for a space entity. Returns launches from the FAA/GCAT database including vehicle type, launch site, outcome, and date. Requires entity_id."
+  },
+  {
+    "name": "get_bond_portfolio",
+    "desc": "Get FCC surety bond portfolio for satellite operators per 47 CFR 25.165. Shows active/theoretical bond amounts, bond releases, and operator details. Also returns summary statistics and FAA financial responsibility data. Use for questions about satellite operator financial obligations, bond compliance, or TPL coverage."
+  },
+  {
+    "name": "search_spectrum",
+    "desc": "Find which entities hold a frequency band. Given a range in MHz, returns spectrum allocations overlapping it, joined to the source filing and applicant — e.g. 'who is allocated 11700-12200 MHz downlink?'. Filter by agency, direction, polarization, or holder name."
+  },
+  {
+    "name": "search_sec_filings",
+    "desc": "Search SEC filings for tracked space companies (8-K material events, 10-Q, 10-K). Filter by ticker, CIK, company name, resolved entity, form type, or date. Use for financial signals — e.g. recent 8-Ks for a satellite operator."
+  },
+  {
+    "name": "search_screening",
+    "desc": "Check entities against consolidated sanctions / export-control screening lists (OFAC SDN, BIS Entity List, ITAR Debarred, etc.). Filter by entity, name, list source, or minimum match similarity. Use for compliance / due-diligence questions."
+  },
+  {
+    "name": "get_entity_dossier",
+    "desc": "Get a cross-source dossier for an entity (by UUID): regulatory filings, SEC financial signals, sanctions/export-control screening hits, and asset footprint (satellites, ground stations, federal awards, surety bonds) — counts plus recent samples in one call. The most complete single view of an operator. Set include_family=true to roll the totals up across the entity's corporate family."
+  },
+  {
+    "name": "search_satellites",
+    "desc": "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, COSPAR, or NORAD id. Joined to the resolved operator entity. Use for 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet."
+  },
+  {
+    "name": "search_ground_stations",
+    "desc": "Search ground / earth stations by name, frequency band, operator, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Proximity defaults to the authoritative FCC IBFS registry (reliable coordinates); band/entity searches use the entity-linked extracted set. Each result is labeled with its source. Use for 'earth stations within 200km of 38.9,-77.0' or an operator's gateway footprint."
+  },
+  {
+    "name": "search_federal_awards",
+    "desc": "Search U.S. federal awards (USAspending contracts + IDVs) by recipient, agency, award type, NAICS, or minimum amount, joined to the resolved recipient entity. Ordered by award amount (largest first). Use for 'NASA contracts to Boeing over $1B' or an operator's federal funding footprint."
+  }
+]
