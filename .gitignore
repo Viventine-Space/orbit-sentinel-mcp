@@ -5,3 +5,4 @@ bin/
 
 *.test
 cover.out
+/orbit-sentinel-mcp
