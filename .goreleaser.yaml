@@ -64,14 +64,14 @@ dockers:
     goos: linux
     goarch: amd64
     build_flag_templates:
-      - "--label=io.modelcontextprotocol.server.name=io.github.viventine-space/orbit-sentinel-mcp"
+      - "--label=io.modelcontextprotocol.server.name=io.github.Viventine-Space/orbit-sentinel-mcp"
       - "--label=org.opencontainers.image.source=https://github.com/viventine-space/orbit-sentinel-mcp"
       - "--label=org.opencontainers.image.licenses=MIT"
 
 # Publish server.json to the official MCP registry (registry.modelcontextprotocol.io).
 # Auth is GitHub Actions OIDC — grants the io.github.viventine-space namespace.
 mcp:
-  name: io.github.viventine-space/orbit-sentinel-mcp
+  name: io.github.Viventine-Space/orbit-sentinel-mcp
   title: "Orbit Sentinel — Space Regulatory Filings"
   # The registry caps description at 100 chars.
   description: "Search 419K+ space regulatory filings from FCC, ITU, UNOOSA, FAA-AST: entities, spectrum, alerts."
