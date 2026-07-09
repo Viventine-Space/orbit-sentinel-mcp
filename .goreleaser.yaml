@@ -73,7 +73,8 @@ dockers:
 mcp:
   name: io.github.viventine-space/orbit-sentinel-mcp
   title: "Orbit Sentinel — Space Regulatory Filings"
-  description: "Search and analyze 419,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST: semantic search, entity dossiers, spectrum holdings, sanctions screening, launch licenses, and filing alerts."
+  # The registry caps description at 100 chars.
+  description: "Search 419K+ space regulatory filings from FCC, ITU, UNOOSA, FAA-AST: entities, spectrum, alerts."
   homepage: "https://console.viventine.com"
   auth:
     type: github-oidc
