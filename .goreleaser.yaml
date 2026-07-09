@@ -33,18 +33,18 @@ checksum:
 release:
   prerelease: auto
 
-# Publishes a cask to acaracappa/homebrew-tap on each release.
+# Publishes a cask to viventine-space/homebrew-tap on each release.
 # Needs the HOMEBREW_TAP_TOKEN secret (PAT with write access to the tap).
 # The post-install hook clears macOS quarantine since the binary is
 # not notarized yet.
 homebrew_casks:
   - name: orbit-sentinel-mcp
     repository:
-      owner: acaracappa
+      owner: viventine-space
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Casks
-    homepage: https://github.com/acaracappa/orbit-sentinel-mcp
+    homepage: https://github.com/viventine-space/orbit-sentinel-mcp
     description: "MCP server for Orbit Sentinel — space regulatory filings from FCC, ITU, UNOOSA, FAA-AST"
     hooks:
       post:
@@ -52,6 +52,40 @@ homebrew_casks:
           if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/orbit-sentinel-mcp"]
           end
+
+# Docker image for MCP clients that run servers via OCI — also the package
+# the MCP registry entry points at (mcpb would need file hashes goreleaser
+# doesn't emit). The registry validates the server-name label on the image.
+dockers:
+  - image_templates:
+      - "ghcr.io/viventine-space/orbit-sentinel-mcp:{{ .Version }}"
+      - "ghcr.io/viventine-space/orbit-sentinel-mcp:latest"
+    dockerfile: Dockerfile.goreleaser
+    goos: linux
+    goarch: amd64
+    build_flag_templates:
+      - "--label=io.modelcontextprotocol.server.name=io.github.viventine-space/orbit-sentinel-mcp"
+      - "--label=org.opencontainers.image.source=https://github.com/viventine-space/orbit-sentinel-mcp"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+# Publish server.json to the official MCP registry (registry.modelcontextprotocol.io).
+# Auth is GitHub Actions OIDC — grants the io.github.viventine-space namespace.
+mcp:
+  name: io.github.viventine-space/orbit-sentinel-mcp
+  title: "Orbit Sentinel — Space Regulatory Filings"
+  description: "Search and analyze 419,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST: semantic search, entity dossiers, spectrum holdings, sanctions screening, launch licenses, and filing alerts."
+  homepage: "https://console.viventine.com"
+  auth:
+    type: github-oidc
+  repository:
+    url: "https://github.com/viventine-space/orbit-sentinel-mcp"
+    source: github
+    id: "1267671324"
+  packages:
+    - registry_type: oci
+      identifier: "ghcr.io/viventine-space/orbit-sentinel-mcp:{{ .Version }}"
+      transport:
+        type: stdio
 
 changelog:
   use: github-native

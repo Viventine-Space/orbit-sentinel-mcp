@@ -1,0 +1,5 @@
+# Used by goreleaser: the prebuilt binary is copied into the build context.
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates
+COPY orbit-sentinel-mcp /usr/local/bin/orbit-sentinel-mcp
+ENTRYPOINT ["/usr/local/bin/orbit-sentinel-mcp"]

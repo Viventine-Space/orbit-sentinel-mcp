@@ -1,7 +1,7 @@
 # Orbit Sentinel MCP Server
 
 MCP (Model Context Protocol) server for [Orbit Sentinel](https://viventine.com) —
-418,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
+419,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
 queryable from Claude Desktop, Claude Code, Cursor, or any MCP client.
 
 An API key is required. Beta access: <https://console.viventine.com>.
@@ -14,7 +14,7 @@ five Go files, easy to audit before you run it.
 ### Homebrew (macOS — recommended)
 
 ```bash
-brew install --cask acaracappa/tap/orbit-sentinel-mcp
+brew install --cask viventine-space/tap/orbit-sentinel-mcp
 ```
 
 Installs to `$(brew --prefix)/bin/orbit-sentinel-mcp`, handles the quarantine
@@ -23,7 +23,7 @@ flag for you, and upgrades with `brew upgrade`.
 ### Manual download
 
 Download the archive for your platform from the
-[latest release](https://github.com/acaracappa/orbit-sentinel-mcp/releases/latest),
+[latest release](https://github.com/viventine-space/orbit-sentinel-mcp/releases/latest),
 then:
 
 ```bash
@@ -42,7 +42,7 @@ Windows: unzip and note the full path to `orbit-sentinel-mcp.exe`.
 ### Build from source
 
 ```bash
-go install github.com/acaracappa/orbit-sentinel-mcp@latest
+go install github.com/viventine-space/orbit-sentinel-mcp@latest
 ```
 
 ## Configure

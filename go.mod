@@ -1,4 +1,4 @@
-module github.com/acaracappa/orbit-sentinel-mcp
+module github.com/viventine-space/orbit-sentinel-mcp
 
 go 1.25
 
