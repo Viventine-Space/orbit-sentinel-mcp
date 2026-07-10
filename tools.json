@@ -78,5 +78,9 @@
   {
     "name": "search_federal_awards",
     "desc": "Search U.S. federal awards (USAspending contracts + IDVs) by recipient, agency, award type, NAICS, or minimum amount, joined to the resolved recipient entity. Ordered by award amount (largest first). Use for 'NASA contracts to Boeing over $1B' or an operator's federal funding footprint."
+  },
+  {
+    "name": "milestone_adherence",
+    "desc": "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts."
   }
 ]

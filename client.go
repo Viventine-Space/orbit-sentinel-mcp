@@ -249,6 +249,16 @@ func (c *APIClient) GetFinancialResponsibility(ctx context.Context, params map[s
 	return c.doGet(ctx, buildPath("/api/v1/financial-responsibility", params))
 }
 
+// GetMilestones calls GET /api/v1/milestones.
+func (c *APIClient) GetMilestones(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/milestones", params))
+}
+
+// GetMilestonesSummary calls GET /api/v1/milestones/summary.
+func (c *APIClient) GetMilestonesSummary(ctx context.Context) (json.RawMessage, error) {
+	return c.doGet(ctx, "/api/v1/milestones/summary")
+}
+
 // ResearchResult holds the combined results of parallel API searches.
 type ResearchResult struct {
 	Filings  json.RawMessage

@@ -176,6 +176,13 @@ type getBondPortfolioInput struct {
 	PerPage   int    `json:"per_page,omitempty" jsonschema:"Results per page (default 20, max 100)"`
 }
 
+type milestoneAdherenceInput struct {
+	CallSign       string `json:"call_sign,omitempty" jsonschema:"Filter by FCC call sign (exact match)"`
+	Classification string `json:"classification,omitempty" jsonschema:"Filter by classification: met|met_late|pending|extended|waived|missed|missed_unverified|unknown"`
+	IsNGSO         *bool  `json:"is_ngso,omitempty" jsonschema:"Filter by orbit type: true for NGSO, false for GSO"`
+	Summary        bool   `json:"summary,omitempty" jsonschema:"If true, return aggregate counts by classification/orbit type instead of individual rows"`
+}
+
 // --- Response types for JSON parsing ---
 
 type paginationData struct {
@@ -955,6 +962,28 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		data, err := client.SearchFederalAwards(ctx, params)
 		if err != nil {
 			return textResult("Error searching federal awards: " + err.Error()), nil, nil
+		}
+		return textResult(formatJSON(data)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "milestone_adherence",
+		Description: "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input milestoneAdherenceInput) (*mcp.CallToolResult, any, error) {
+		if input.Summary {
+			data, err := client.GetMilestonesSummary(ctx)
+			if err != nil {
+				return textResult("Error fetching milestone summary: " + err.Error()), nil, nil
+			}
+			return textResult(formatJSON(data)), nil, nil
+		}
+		params := map[string]string{"call_sign": input.CallSign, "classification": input.Classification}
+		if input.IsNGSO != nil {
+			params["is_ngso"] = strconv.FormatBool(*input.IsNGSO)
+		}
+		data, err := client.GetMilestones(ctx, params)
+		if err != nil {
+			return textResult("Error fetching milestones: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
