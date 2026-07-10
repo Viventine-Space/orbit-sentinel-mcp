@@ -13,6 +13,12 @@ five Go files, easy to audit before you run it.
 
 ## Install
 
+### Claude Desktop (one-click)
+
+Download [orbit-sentinel-mcp.mcpb](https://github.com/Viventine-Space/orbit-sentinel-mcp/releases/latest/download/orbit-sentinel-mcp.mcpb)
+and double-click it — Claude Desktop installs the extension and prompts for
+your API key. Bundles macOS (universal), Linux, and Windows binaries.
+
 ### Homebrew (macOS — recommended)
 
 ```bash
@@ -96,6 +102,11 @@ git tag v0.x.y && git push origin v0.x.y
 
 Asset names are version-stable (`orbit-sentinel-mcp_<os>_<arch>.tar.gz`), so
 `releases/latest/download/...` URLs always serve the newest build.
+
+Also rebuild and upload the Claude Desktop bundle so the `releases/latest`
+one-click link stays valid: rebuild the three platform binaries into the MCPB
+layout, `mcpb pack`, then `gh release upload v0.x.y orbit-sentinel-mcp.mcpb`
+(candidate for goreleaser automation next cycle).
 
 Then repeat the [Glama release](https://glama.ai/blog/2026-03-15-how-to-make-a-release)
 — it does not auto-update from GitHub, and it gates the quality score on the
