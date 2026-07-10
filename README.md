@@ -96,3 +96,11 @@ git tag v0.x.y && git push origin v0.x.y
 
 Asset names are version-stable (`orbit-sentinel-mcp_<os>_<arch>.tar.gz`), so
 `releases/latest/download/...` URLs always serve the newest build.
+
+Then repeat the [Glama release](https://glama.ai/blog/2026-03-15-how-to-make-a-release)
+— it does not auto-update from GitHub, and it gates the quality score on the
+badge above. On the [Dockerfile admin page](https://glama.ai/mcp/servers/Viventine-Space/orbit-sentinel-mcp/admin/dockerfile),
+the saved build spec should carry over (build steps install Go and `go build`;
+placeholder parameters need a dummy `MCP_API_KEY` to satisfy the env schema) —
+click **Build**, then **Make Release** with the new version. Manual for now;
+consider Glama API integration next release cycle.
