@@ -1,5 +1,7 @@
 # Orbit Sentinel MCP Server
 
+[![orbit-sentinel-mcp MCP server](https://glama.ai/mcp/servers/Viventine-Space/orbit-sentinel-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Viventine-Space/orbit-sentinel-mcp)
+
 MCP (Model Context Protocol) server for [Orbit Sentinel](https://viventine.com) —
 419,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
 queryable from Claude Desktop, Claude Code, Cursor, or any MCP client.
