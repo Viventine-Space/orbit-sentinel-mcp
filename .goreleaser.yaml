@@ -75,7 +75,7 @@ mcp:
   title: "Orbit Sentinel — Space Regulatory Filings"
   # The registry caps description at 100 chars.
   description: "Search 419K+ space regulatory filings from FCC, ITU, UNOOSA, FAA-AST: entities, spectrum, alerts."
-  homepage: "https://console.viventine.com"
+  homepage: "https://viventine.com/orbit-sentinel/"
   auth:
     type: github-oidc
   repository:
