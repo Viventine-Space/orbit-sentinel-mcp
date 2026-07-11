@@ -1,6 +1,12 @@
 # Orbit Sentinel MCP Server
 
+[![CI](https://github.com/Viventine-Space/orbit-sentinel-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Viventine-Space/orbit-sentinel-mcp/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Viventine-Space/orbit-sentinel-mcp)](https://github.com/Viventine-Space/orbit-sentinel-mcp/releases/latest)
+[![MCP Registry](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.modelcontextprotocol.io%2Fv0%2Fservers%2Fio.github.Viventine-Space%252Forbit-sentinel-mcp%2Fversions%2Flatest&query=%24.server.version&label=MCP%20Registry&prefix=v&color=blue)](https://registry.modelcontextprotocol.io/v0/servers/io.github.Viventine-Space%2Forbit-sentinel-mcp/versions/latest)
 [![orbit-sentinel-mcp MCP server](https://glama.ai/mcp/servers/Viventine-Space/orbit-sentinel-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Viventine-Space/orbit-sentinel-mcp)
+[![Go Reference](https://pkg.go.dev/badge/github.com/viventine-space/orbit-sentinel-mcp.svg)](https://pkg.go.dev/github.com/viventine-space/orbit-sentinel-mcp)
+[![License: MIT](https://img.shields.io/github/license/Viventine-Space/orbit-sentinel-mcp)](LICENSE)
+[![LobeHub](https://lobehub.com/badge/mcp/viventine-space-orbit-sentinel-mcp)](https://lobehub.com/mcp/viventine-space-orbit-sentinel-mcp)
 
 MCP (Model Context Protocol) server for [Orbit Sentinel](https://viventine.com) —
 419,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
