@@ -6,7 +6,7 @@
 [![orbit-sentinel-mcp MCP server](https://glama.ai/mcp/servers/Viventine-Space/orbit-sentinel-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Viventine-Space/orbit-sentinel-mcp)
 [![Go Reference](https://pkg.go.dev/badge/github.com/viventine-space/orbit-sentinel-mcp.svg)](https://pkg.go.dev/github.com/viventine-space/orbit-sentinel-mcp)
 [![License: MIT](https://img.shields.io/github/license/Viventine-Space/orbit-sentinel-mcp)](LICENSE)
-[![LobeHub](https://lobehub.com/badge/mcp/viventine-space-orbit-sentinel-mcp)](https://lobehub.com/mcp/viventine-space-orbit-sentinel-mcp)
+[![MCP Badge](https://lobehub.com/badge/mcp/viventine-space-orbit-sentinel-mcp)](https://lobehub.com/mcp/viventine-space-orbit-sentinel-mcp)
 
 MCP (Model Context Protocol) server for [Orbit Sentinel](https://viventine.com) —
 419,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
