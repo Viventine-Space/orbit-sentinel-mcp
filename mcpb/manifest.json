@@ -1,0 +1,72 @@
+{
+  "manifest_version": "0.3",
+  "name": "orbit-sentinel-mcp",
+  "display_name": "Orbit Sentinel",
+  "version": "0.0.0-stamped-at-release",
+  "description": "Search 419,000+ space regulatory filings from the FCC, ITU, UNOOSA, and FAA-AST.",
+  "long_description": "Orbit Sentinel provides 20 tools over 419,000+ LLM-extracted space regulatory filings from the FCC, ITU, UNOOSA, and FAA-AST: semantic search, entity dossiers (filings + SEC + sanctions screening), spectrum-band holdings, launch licenses, filing trends and distributions, and email alerts. A thin open-source (MIT) stdio client of the Orbit Sentinel REST API. Get a free beta API key via magic-link signup at https://console.viventine.com.",
+  "author": {
+    "name": "Viventine Space Systems LLC",
+    "url": "https://viventine.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Viventine-Space/orbit-sentinel-mcp.git"
+  },
+  "homepage": "https://viventine.com/orbit-sentinel/",
+  "support": "https://github.com/Viventine-Space/orbit-sentinel-mcp/issues",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/orbit-sentinel-mcp-darwin",
+    "mcp_config": {
+      "command": "${__dirname}/server/orbit-sentinel-mcp-darwin",
+      "args": [],
+      "env": {
+        "MCP_API_KEY": "${user_config.api_key}",
+        "MCP_API_URL": "${user_config.api_url}"
+      },
+      "platform_overrides": {
+        "linux": {
+          "command": "${__dirname}/server/orbit-sentinel-mcp-linux"
+        },
+        "win32": {
+          "command": "${__dirname}/server/orbit-sentinel-mcp.exe"
+        }
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Orbit Sentinel API Key",
+      "description": "Free beta key via magic-link signup at https://console.viventine.com",
+      "sensitive": true,
+      "required": true
+    },
+    "api_url": {
+      "type": "string",
+      "title": "API Base URL",
+      "description": "Orbit Sentinel API endpoint",
+      "default": "https://orbit-sentinel.viventine.com",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "linux",
+      "win32"
+    ]
+  },
+  "keywords": [
+    "space",
+    "regulatory",
+    "fcc",
+    "itu",
+    "unoosa",
+    "faa",
+    "satellite",
+    "spectrum"
+  ],
+  "license": "MIT"
+}

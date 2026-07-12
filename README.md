@@ -109,10 +109,9 @@ git tag v0.x.y && git push origin v0.x.y
 Asset names are version-stable (`orbit-sentinel-mcp_<os>_<arch>.tar.gz`), so
 `releases/latest/download/...` URLs always serve the newest build.
 
-Also rebuild and upload the Claude Desktop bundle so the `releases/latest`
-one-click link stays valid: rebuild the three platform binaries into the MCPB
-layout, `mcpb pack`, then `gh release upload v0.x.y orbit-sentinel-mcp.mcpb`
-(candidate for goreleaser automation next cycle).
+The Claude Desktop bundle (`orbit-sentinel-mcp.mcpb`) is packed and uploaded
+by the release workflow — the manifest template lives at `mcpb/manifest.json`
+(its `version` is stamped from the tag at pack time).
 
 Then repeat the [Glama release](https://glama.ai/blog/2026-03-15-how-to-make-a-release)
 — it does not auto-update from GitHub, and it gates the quality score on the

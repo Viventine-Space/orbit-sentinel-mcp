@@ -30,3 +30,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      # Keeps the README's releases/latest/download/orbit-sentinel-mcp.mcpb
+      # one-click link valid — goreleaser can't pack .mcpb itself.
+      - name: Build and upload Claude Desktop bundle (.mcpb)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p mcpb-build/server
+          jq --arg v "${GITHUB_REF_NAME#v}" '.version = $v' mcpb/manifest.json > mcpb-build/manifest.json
+          DARWIN=$(jq -r '.[] | select(.type == "Binary" and .goos == "darwin" and .goarch == "all") | .path' dist/artifacts.json)
+          LINUX=$(jq -r '.[] | select(.type == "Binary" and .goos == "linux" and .goarch == "amd64") | .path' dist/artifacts.json)
+          WINDOWS=$(jq -r '.[] | select(.type == "Binary" and .goos == "windows") | .path' dist/artifacts.json)
+          cp "$DARWIN" mcpb-build/server/orbit-sentinel-mcp-darwin
+          cp "$LINUX" mcpb-build/server/orbit-sentinel-mcp-linux
+          cp "$WINDOWS" mcpb-build/server/orbit-sentinel-mcp.exe
+          npx -y @anthropic-ai/mcpb pack mcpb-build orbit-sentinel-mcp.mcpb
+          gh release upload "$GITHUB_REF_NAME" orbit-sentinel-mcp.mcpb

@@ -16,6 +16,11 @@ builds:
     ldflags:
       - -s -w -X main.version={{ .Version }}
 
+# Fat darwin binary for the .mcpb bundle (dist/orbit-sentinel-mcp_darwin_all/).
+# replace: false keeps the per-arch archives unchanged.
+universal_binaries:
+  - replace: false
+
 archives:
   # No {{ .Version }} in the name — console links use
   # releases/latest/download/<name>, which requires stable asset names.
