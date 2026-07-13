@@ -569,6 +569,12 @@ type docketItem struct {
 // the root cause is.
 func wrapAddTool[In, Out any](s *mcp.Server, tool *mcp.Tool, handler func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, Out, error)) {
 	name := tool.Name
+	// Every Orbit Sentinel tool is a read-only query against the REST API;
+	// revisit this blanket annotation if a mutating tool is ever added.
+	if tool.Annotations == nil {
+		tool.Annotations = &mcp.ToolAnnotations{}
+	}
+	tool.Annotations.ReadOnlyHint = true
 	mcp.AddTool(s, tool, func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, Out, error) {
 		return handler(WithMCPTool(ctx, name), req, input)
 	})

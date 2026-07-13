@@ -61,17 +61,19 @@ homebrew_casks:
 # Docker image for MCP clients that run servers via OCI — also the package
 # the MCP registry entry points at (mcpb would need file hashes goreleaser
 # doesn't emit). The registry validates the server-name label on the image.
-dockers:
-  - image_templates:
-      - "ghcr.io/viventine-space/orbit-sentinel-mcp:{{ .Version }}"
-      - "ghcr.io/viventine-space/orbit-sentinel-mcp:latest"
+dockers_v2:
+  - images:
+      - "ghcr.io/viventine-space/orbit-sentinel-mcp"
+    tags:
+      - "{{ .Version }}"
+      - "latest"
     dockerfile: Dockerfile.goreleaser
-    goos: linux
-    goarch: amd64
-    build_flag_templates:
-      - "--label=io.modelcontextprotocol.server.name=io.github.Viventine-Space/orbit-sentinel-mcp"
-      - "--label=org.opencontainers.image.source=https://github.com/viventine-space/orbit-sentinel-mcp"
-      - "--label=org.opencontainers.image.licenses=MIT"
+    platforms:
+      - linux/amd64
+    labels:
+      "io.modelcontextprotocol.server.name": "io.github.Viventine-Space/orbit-sentinel-mcp"
+      "org.opencontainers.image.source": "https://github.com/viventine-space/orbit-sentinel-mcp"
+      "org.opencontainers.image.licenses": "MIT"
 
 # Publish server.json to the official MCP registry (registry.modelcontextprotocol.io).
 # Auth is GitHub Actions OIDC — grants the io.github.viventine-space namespace.

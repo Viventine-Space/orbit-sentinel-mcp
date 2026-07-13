@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -12,6 +14,11 @@ import (
 var version = "dev"
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v" || os.Args[1] == "version") {
+		fmt.Println("orbit-sentinel-mcp " + version)
+		return
+	}
+
 	_ = godotenv.Load() // optional — .env not required
 
 	client := NewAPIClient()
