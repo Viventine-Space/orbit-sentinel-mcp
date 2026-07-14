@@ -38,23 +38,23 @@ func newHTTPHandler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.Handle("/mcp", withBearerAuth(handler))
+	mux.Handle("/mcp", withCallerKey(handler))
 
 	return mux
 }
 
-// withBearerAuth rejects requests lacking a Bearer token and stamps the token
-// onto the request context so tool handlers forward the caller's own key.
-func withBearerAuth(next http.Handler) http.Handler {
+// withCallerKey stamps the caller's bearer token (when present) onto the
+// request context so tool handlers forward it to the REST API. The MCP
+// handshake and tool listing are open metadata — directory scanners probe
+// them unauthenticated, and a transport-level 401 reads as "OAuth required"
+// per the MCP spec. Requests without a key fail at the REST layer when a
+// tool call needs data.
+func withCallerKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key := bearerToken(r.Header.Get("Authorization"))
-		if key == "" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`{"error":"missing or invalid Authorization header"}`))
-			return
+		if key := bearerToken(r.Header.Get("Authorization")); key != "" {
+			r = r.WithContext(WithAPIKey(r.Context(), key))
 		}
-		next.ServeHTTP(w, r.WithContext(WithAPIKey(r.Context(), key)))
+		next.ServeHTTP(w, r)
 	})
 }
 

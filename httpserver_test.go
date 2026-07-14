@@ -63,25 +63,59 @@ func TestHTTPHealthz(t *testing.T) {
 	}
 }
 
-func TestHTTPMissingAuthRejected(t *testing.T) {
-	srv := httptest.NewServer(newHTTPHandler())
-	defer srv.Close()
+func TestHTTPUnauthenticatedHandshakeAndGatedCalls(t *testing.T) {
+	restAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"total":42}`))
+	}))
+	defer restAPI.Close()
 
-	payload := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`
-	resp, err := http.Post(srv.URL+"/mcp", "application/json", strings.NewReader(payload))
+	t.Setenv("MCP_API_URL", restAPI.URL)
+	t.Setenv("MCP_API_KEY", "env-key-must-not-be-used")
+
+	mcpSrv := httptest.NewServer(newHTTPHandler())
+	defer mcpSrv.Close()
+
+	ctx := context.Background()
+	transport := &mcp.StreamableClientTransport{
+		Endpoint:             mcpSrv.URL + "/mcp",
+		DisableStandaloneSSE: true,
+	}
+	client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil)
+	session, err := client.Connect(ctx, transport, nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("unauthenticated initialize should succeed (scanners probe it): %v", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401", resp.StatusCode)
+	defer session.Close()
+
+	tools, err := session.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("unauthenticated tools/list should succeed: %v", err)
 	}
-	if ct := resp.Header.Get("Content-Type"); ct != "application/json" {
-		t.Fatalf("content-type = %q, want application/json", ct)
+	if len(tools.Tools) == 0 {
+		t.Fatal("tools/list returned no tools")
 	}
-	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "error") {
-		t.Fatalf("body = %q, want JSON error", body)
+
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "search_filings",
+		Arguments: map[string]any{"count_only": true},
+	})
+	if err != nil {
+		t.Fatalf("tools/call transport error: %v", err)
+	}
+	var text string
+	for _, c := range res.Content {
+		if tc, ok := c.(*mcp.TextContent); ok {
+			text += tc.Text
+		}
+	}
+	if !strings.Contains(text, "401") && !strings.Contains(strings.ToLower(text), "error") {
+		t.Fatalf("unauthenticated tools/call should surface the REST 401, got %q", text)
 	}
 }
 
