@@ -58,12 +58,17 @@ func withBearerAuth(next http.Handler) http.Handler {
 	})
 }
 
-// bearerToken extracts the token from an "Authorization: Bearer <token>" header,
-// returning "" if the scheme is absent or the token is empty.
+// bearerToken extracts the token from an Authorization header. Accepts both
+// "Bearer <token>" and a bare token — gateways like Smithery forward config
+// values to upstream headers raw, with no way to add the scheme prefix.
 func bearerToken(header string) string {
 	const prefix = "bearer "
-	if len(header) < len(prefix) || !strings.EqualFold(header[:len(prefix)], prefix) {
+	if len(header) >= len(prefix) && strings.EqualFold(header[:len(prefix)], prefix) {
+		return strings.TrimSpace(header[len(prefix):])
+	}
+	header = strings.TrimSpace(header)
+	if header == "" || strings.ContainsAny(header, " \t") {
 		return ""
 	}
-	return strings.TrimSpace(header[len(prefix):])
+	return header
 }

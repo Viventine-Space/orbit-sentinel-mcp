@@ -25,6 +25,26 @@ func (b bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	return b.base.RoundTrip(req)
 }
 
+func TestBearerToken(t *testing.T) {
+	cases := []struct {
+		header, want string
+	}{
+		{"Bearer abc123", "abc123"},
+		{"bearer abc123", "abc123"},
+		{"Bearer  abc123 ", "abc123"},
+		{"abc123", "abc123"},   // bare token: gateways forward config values raw
+		{" abc123 ", "abc123"}, // bare token, padded
+		{"Basic dXNlcjpwYXNz", ""},
+		{"Bearer ", ""},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := bearerToken(c.header); got != c.want {
+			t.Errorf("bearerToken(%q) = %q, want %q", c.header, got, c.want)
+		}
+	}
+}
+
 func TestHTTPHealthz(t *testing.T) {
 	srv := httptest.NewServer(newHTTPHandler())
 	defer srv.Close()
