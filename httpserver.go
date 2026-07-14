@@ -38,7 +38,7 @@ func newHTTPHandler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.Handle("/mcp", withCallerKey(handler))
+	mux.Handle("/mcp", withCallerKey(rateLimitUnauth(handler)))
 
 	return mux
 }
