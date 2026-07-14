@@ -51,6 +51,22 @@ func mcpToolFromContext(ctx context.Context) string {
 	return v
 }
 
+// apiKeyContextKey is the key under which the per-request caller API key is
+// stashed on the context in HTTP mode.
+type apiKeyContextKey struct{}
+
+// WithAPIKey returns a context carrying the caller's API key. In HTTP mode the
+// auth middleware stamps the key from the incoming Authorization header so each
+// request forwards the caller's own key to the REST API.
+func WithAPIKey(ctx context.Context, key string) context.Context {
+	return context.WithValue(ctx, apiKeyContextKey{}, key)
+}
+
+func apiKeyFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(apiKeyContextKey{}).(string)
+	return v
+}
+
 func (c *APIClient) doGet(ctx context.Context, path string) (json.RawMessage, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
 	if err != nil {
@@ -71,8 +87,12 @@ func (c *APIClient) doPost(ctx context.Context, path string, payload []byte) (js
 }
 
 func (c *APIClient) applyHeaders(req *http.Request, path string, ctx context.Context) {
-	if c.APIKey != "" && strings.HasPrefix(path, "/api/") {
-		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	key := apiKeyFromContext(ctx)
+	if key == "" {
+		key = c.APIKey
+	}
+	if key != "" && strings.HasPrefix(path, "/api/") {
+		req.Header.Set("Authorization", "Bearer "+key)
 	}
 	if tool := mcpToolFromContext(ctx); tool != "" {
 		req.Header.Set("X-MCP-Tool", tool)

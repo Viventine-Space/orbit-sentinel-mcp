@@ -92,10 +92,10 @@ type searchScreeningInput struct {
 }
 
 type getDossierInput struct {
-	ID               string `json:"id" jsonschema:"Entity UUID"`
-	IncludeFamily      bool   `json:"include_family,omitempty" jsonschema:"Roll the dossier up across the entity's corporate family (same legal entity grouped by shared CIK/FRN or matching name). Default false."`
-	FamilyConfidence   string `json:"family_confidence,omitempty" jsonschema:"Family grouping strictness when include_family=true: 'high' (default; exact name / shared identifier) or 'medium' (also groups normalized-name matches like 'AT&T INC.' with 'AT&T Corp.')."`
-	IncludeSubsidiaries bool  `json:"include_subsidiaries,omitempty" jsonschema:"Also roll up the entity's direct subsidiaries (from authoritative SEC Exhibit-21 / GCAT parent links). Default false."`
+	ID                  string `json:"id" jsonschema:"Entity UUID"`
+	IncludeFamily       bool   `json:"include_family,omitempty" jsonschema:"Roll the dossier up across the entity's corporate family (same legal entity grouped by shared CIK/FRN or matching name). Default false."`
+	FamilyConfidence    string `json:"family_confidence,omitempty" jsonschema:"Family grouping strictness when include_family=true: 'high' (default; exact name / shared identifier) or 'medium' (also groups normalized-name matches like 'AT&T INC.' with 'AT&T Corp.')."`
+	IncludeSubsidiaries bool   `json:"include_subsidiaries,omitempty" jsonschema:"Also roll up the entity's direct subsidiaries (from authoritative SEC Exhibit-21 / GCAT parent links). Default false."`
 }
 
 type searchSatellitesInput struct {

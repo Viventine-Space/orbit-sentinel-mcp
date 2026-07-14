@@ -14,10 +14,47 @@ queryable from Claude Desktop, Claude Code, Cursor, or any MCP client.
 
 An API key is required. Beta access: <https://console.viventine.com>.
 
-The server is a thin, open-source (MIT) stdio client of the public REST API —
-five Go files, easy to audit before you run it.
+The server is a thin, open-source (MIT) client of the public REST API — five Go
+files, easy to audit before you run it. Run it locally over stdio, or skip the
+install entirely and point your client at the hosted remote endpoint (below).
 
 ## Install
+
+### Remote (no install)
+
+The lowest-friction path — no binary, no updates. Point any HTTP-capable MCP
+client at:
+
+```
+https://orbit-sentinel.viventine.com/mcp
+```
+
+Transport is Streamable HTTP (stateless). Authenticate with your console API key
+— the same key stdio users put in `MCP_API_KEY` — as a bearer token:
+
+```
+Authorization: Bearer <your-key>
+```
+
+**Claude Code** — one command:
+
+```bash
+claude mcp add --transport http orbit-sentinel \
+  https://orbit-sentinel.viventine.com/mcp \
+  --header "Authorization: Bearer <your-key>"
+```
+
+**claude.ai / Claude Desktop (custom connector)** — Settings → Connectors → Add
+custom connector, and paste the URL. Heads-up on auth: the custom-connector UI
+is built around OAuth, and a fixed API-key/bearer header (`static_headers`) is
+[beta and entered by an organization admin](https://claude.com/docs/connectors/building/authentication),
+not by individual users. Orbit Sentinel's remote endpoint authenticates with a
+static bearer key, so unless your org has the beta header field, use Claude Code
+or a local install instead.
+
+**Generic MCP clients** — any client that speaks Streamable HTTP works: use the
+URL above and send `Authorization: Bearer <your-key>` on every request. For a
+stdio-only client, bridge with `npx mcp-remote https://orbit-sentinel.viventine.com/mcp --header "Authorization: Bearer <your-key>"`.
 
 ### Claude Desktop (one-click)
 

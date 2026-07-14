@@ -21,8 +21,22 @@ func main() {
 
 	_ = godotenv.Load() // optional — .env not required
 
-	client := NewAPIClient()
+	if addr := os.Getenv("MCP_HTTP_ADDR"); addr != "" {
+		if err := runHTTP(addr); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
+	client := NewAPIClient()
+	server := newServer(client)
+
+	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func newServer(client *APIClient) *mcp.Server {
 	server := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "orbit-sentinel",
@@ -65,7 +79,5 @@ Statuses: FILED, ACCEPTED, PUBLIC_NOTICE, COMMENT_PERIOD, UNDER_REVIEW, GRANTED,
 	registerResources(server, client)
 	registerPrompts(server, client)
 
-	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-		log.Fatal(err)
-	}
+	return server
 }

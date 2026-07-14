@@ -25,6 +25,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # dockers_v2 pushes with --attest=type=sbom, which needs a
       # container-driver buildx builder (default docker driver can't).
+      # QEMU lets the amd64 runner execute the arm64 image's RUN steps.
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: goreleaser/goreleaser-action@v7
         with:
