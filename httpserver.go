@@ -24,6 +24,12 @@ func runHTTP(addr string) error {
 }
 
 func newHTTPHandler() http.Handler {
+	return newHTTPHandlerWithVerifier(newOAuthVerifier())
+}
+
+// newHTTPHandlerWithVerifier builds the HTTP mux with an injectable OAuth
+// verifier so tests can point validation at fixtures or a stub JWKS endpoint.
+func newHTTPHandlerWithVerifier(v *oauthVerifier) http.Handler {
 	client := NewAPIClient()
 	client.APIKey = "" // HTTP callers authenticate per-request; no env-key fallback
 	server := newServer(client)
@@ -38,24 +44,10 @@ func newHTTPHandler() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.Handle("/mcp", withCallerKey(rateLimitUnauth(handler)))
+	mux.Handle(prmPath, oauthMetadataHandler())
+	mux.Handle("/mcp", v.middleware(rateLimitUnauth(handler)))
 
 	return mux
-}
-
-// withCallerKey stamps the caller's bearer token (when present) onto the
-// request context so tool handlers forward it to the REST API. The MCP
-// handshake and tool listing are open metadata — directory scanners probe
-// them unauthenticated, and a transport-level 401 reads as "OAuth required"
-// per the MCP spec. Requests without a key fail at the REST layer when a
-// tool call needs data.
-func withCallerKey(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if key := bearerToken(r.Header.Get("Authorization")); key != "" {
-			r = r.WithContext(WithAPIKey(r.Context(), key))
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 // bearerToken extracts the token from an Authorization header. Accepts both
