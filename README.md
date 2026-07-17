@@ -29,14 +29,22 @@ client at:
 https://orbit-sentinel.viventine.com/mcp
 ```
 
-Transport is Streamable HTTP (stateless). Authenticate with your console API key
-— the same key stdio users put in `MCP_API_KEY` — as a bearer token:
+Transport is Streamable HTTP (stateless). Two ways to authenticate:
 
-```
-Authorization: Bearer <your-key>
+**OAuth (recommended)** — sign in with your Viventine account in the browser; no
+key to copy or store. In Claude Code:
+
+```bash
+claude mcp add --transport http orbit-sentinel https://orbit-sentinel.viventine.com/mcp
 ```
 
-**Claude Code** — one command:
+Then run `/mcp` -> orbit-sentinel -> authenticate. A browser opens for sign-in
+and consent; Claude Code stores the token and refreshes it automatically. The
+same works as a custom connector in claude.ai / Claude Desktop (Settings ->
+Connectors -> Add custom connector -> paste the URL -> sign in).
+
+**API key** — if you'd rather use a static key (or your client can't do OAuth),
+pass your console key as a bearer token:
 
 ```bash
 claude mcp add --transport http orbit-sentinel \
@@ -44,17 +52,12 @@ claude mcp add --transport http orbit-sentinel \
   --header "Authorization: Bearer <your-key>"
 ```
 
-**claude.ai / Claude Desktop (custom connector)** — Settings → Connectors → Add
-custom connector, and paste the URL. Heads-up on auth: the custom-connector UI
-is built around OAuth, and a fixed API-key/bearer header (`static_headers`) is
-[beta and entered by an organization admin](https://claude.com/docs/connectors/building/authentication),
-not by individual users. Orbit Sentinel's remote endpoint authenticates with a
-static bearer key, so unless your org has the beta header field, use Claude Code
-or a local install instead.
+Get a key / beta access at <https://console.viventine.com>.
 
-**Generic MCP clients** — any client that speaks Streamable HTTP works: use the
-URL above and send `Authorization: Bearer <your-key>` on every request. For a
-stdio-only client, bridge with `npx mcp-remote https://orbit-sentinel.viventine.com/mcp --header "Authorization: Bearer <your-key>"`.
+**Generic MCP clients** — any Streamable HTTP client works via OAuth 2.1
+(RFC 9728 protected-resource discovery) or an `Authorization: Bearer <key>`
+header. For a stdio-only client, bridge with
+`npx mcp-remote https://orbit-sentinel.viventine.com/mcp`.
 
 ### Claude Desktop (one-click)
 
