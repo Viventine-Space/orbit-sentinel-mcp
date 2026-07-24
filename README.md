@@ -9,12 +9,12 @@
 [![MCP Badge](https://lobehub.com/badge/mcp/viventine-space-orbit-sentinel-mcp)](https://lobehub.com/mcp/viventine-space-orbit-sentinel-mcp)
 
 MCP (Model Context Protocol) server for [Orbit Sentinel](https://viventine.com) —
-419,000+ extracted space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
+950K+ space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
 queryable from Claude Desktop, Claude Code, Cursor, or any MCP client.
 
 An API key is required. Beta access: <https://console.viventine.com>.
 
-The server is a thin, open-source (MIT) client of the public REST API — five Go
+The server is a thin, open-source (MIT) client of the public REST API — nine Go
 files, easy to audit before you run it. Run it locally over stdio, or skip the
 install entirely and point your client at the hosted remote endpoint (below).
 

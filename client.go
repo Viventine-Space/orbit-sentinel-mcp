@@ -26,7 +26,7 @@ type APIClient struct {
 func NewAPIClient() *APIClient {
 	baseURL := os.Getenv("MCP_API_URL")
 	if baseURL == "" {
-		baseURL = "http://localhost:8080"
+		baseURL = "https://orbit-sentinel.viventine.com"
 	}
 	return &APIClient{
 		BaseURL:    strings.TrimRight(baseURL, "/"),

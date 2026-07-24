@@ -5,7 +5,7 @@ MCP server on a user's machine.
 
 ## Overview
 
-- **What it is**: stdio MCP server exposing 20 tools over 419,000+ space
+- **What it is**: stdio MCP server exposing 21 tools over 950K+ space
   regulatory filings (FCC, ITU, UNOOSA, FAA-AST) via the Orbit Sentinel REST API.
 - **Runtime**: single static Go binary. No Node, Python, or Docker required.
 - **Credentials**: requires `MCP_API_KEY`. Free beta keys via magic-link signup

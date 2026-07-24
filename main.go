@@ -43,7 +43,7 @@ func newServer(client *APIClient) *mcp.Server {
 			Version: version,
 		},
 		&mcp.ServerOptions{
-			Instructions: `Orbit Sentinel: 418,000+ extracted space regulatory filings (946,000+ total) from FCC, ITU, UNOOSA, and FAA-AST.
+			Instructions: `Orbit Sentinel: 950K+ space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST.
 
 ## CRITICAL RULES — follow these without exception
 1. ONLY state facts that appear in tool results. Never infer dates, names, acronyms, or relationships not in the data.
