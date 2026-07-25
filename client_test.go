@@ -6,8 +6,8 @@ func TestNewAPIClientDefaults(t *testing.T) {
 	t.Setenv("MCP_API_URL", "")
 	t.Setenv("MCP_API_KEY", "")
 	c := NewAPIClient()
-	if c.BaseURL != "http://localhost:8080" {
-		t.Errorf("BaseURL = %q, want http://localhost:8080", c.BaseURL)
+	if c.BaseURL != "https://orbit-sentinel.viventine.com" {
+		t.Errorf("BaseURL = %q, want https://orbit-sentinel.viventine.com", c.BaseURL)
 	}
 	if c.APIKey != "" {
 		t.Errorf("APIKey = %q, want empty", c.APIKey)
