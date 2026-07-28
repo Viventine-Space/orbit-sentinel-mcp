@@ -1658,7 +1658,7 @@ func formatResearch(res *ResearchResult) string {
 	b.WriteString("**DATA PROVENANCE:** All results above come from the Orbit Sentinel database.\n")
 	b.WriteString("Sources indexed: FCC (IBFS satellite/earth-station licensing, ECFS proceedings, EDOCS), ITU space network filings, UNOOSA registrations, FAA-AST launch filings.\n")
 	b.WriteString("NOT indexed: FCC ELS (experimental licenses), FCC ULS (terrestrial licenses), NOAA CRSRA remote-sensing licenses, NTIA federal spectrum assignments, CORES FRN registry.\n")
-	b.WriteString("IMPORTANT: Only state facts shown above. Do not infer, speculate, or supplement with outside knowledge. If no results appear for a topic, say \"no matching data found in database\" — the information may exist in sources not yet indexed.\n")
+	b.WriteString("IMPORTANT: Only state facts shown above. Do not add outside-knowledge facts about entities, filings, or designations — not even clearly labeled as such. If no results appear for a topic, say \"no matching data found in database\"; you may point to the authoritative external source for uncovered data (a bare pointer, no claims about its contents).\n")
 
 	return b.String()
 }
