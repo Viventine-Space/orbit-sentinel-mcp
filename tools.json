@@ -81,6 +81,6 @@
   },
   {
     "name": "milestone_adherence",
-    "desc": "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts."
+    "desc": "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|met_late|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts."
   }
 ]

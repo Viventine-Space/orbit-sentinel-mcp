@@ -23,8 +23,8 @@ type ipLimiterEntry struct {
 }
 
 // rateLimitUnauth throttles requests that carry no API key, keyed by client
-// IP. Must wrap the handler inside withCallerKey so the context reflects the
-// caller's auth state. Stale limiters are evicted to bound memory.
+// IP. Must wrap the handler inside oauthVerifier.middleware so the context
+// reflects the caller's auth state. Stale limiters are evicted to bound memory.
 func rateLimitUnauth(next http.Handler) http.Handler {
 	var mu sync.Mutex
 	limiters := make(map[string]*ipLimiterEntry)

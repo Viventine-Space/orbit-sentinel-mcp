@@ -259,11 +259,6 @@ func (c *APIClient) GetBondSummary(ctx context.Context) (json.RawMessage, error)
 	return c.doGet(ctx, "/api/v1/bonds/summary")
 }
 
-// GetBondEvents calls GET /api/v1/bonds/events.
-func (c *APIClient) GetBondEvents(ctx context.Context, params map[string]string) (json.RawMessage, error) {
-	return c.doGet(ctx, buildPath("/api/v1/bonds/events", params))
-}
-
 // GetFinancialResponsibility calls GET /api/v1/financial-responsibility.
 func (c *APIClient) GetFinancialResponsibility(ctx context.Context, params map[string]string) (json.RawMessage, error) {
 	return c.doGet(ctx, buildPath("/api/v1/financial-responsibility", params))

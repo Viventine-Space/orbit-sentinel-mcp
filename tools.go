@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -974,7 +977,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "milestone_adherence",
-		Description: "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts.",
+		Description: "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|met_late|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input milestoneAdherenceInput) (*mcp.CallToolResult, any, error) {
 		if input.Summary {
 			data, err := client.GetMilestonesSummary(ctx)
@@ -1304,11 +1307,7 @@ func formatSemanticResults(data json.RawMessage) string {
 		fmt.Fprintf(&b, "**Agency:** %s | **Source ID:** %s | **Filed:** %s | **Applicant:** %s\n",
 			r.Agency, r.SourceID, deref(r.FiledDate), deref(r.ApplicantName))
 		fmt.Fprintf(&b, "**Filing ID:** %s\n", r.FilingID)
-		chunk := r.MatchedChunk
-		if len(chunk) > 200 {
-			chunk = chunk[:197] + "..."
-		}
-		fmt.Fprintf(&b, "\n> %s\n\n", chunk)
+		fmt.Fprintf(&b, "\n> %s\n\n", truncate(r.MatchedChunk, 200))
 	}
 	b.WriteString("_Source: Orbit Sentinel database. Only cite facts shown above._\n")
 	return b.String()
@@ -1342,7 +1341,7 @@ func formatEntityList(data json.RawMessage) string {
 	for i, e := range items {
 		num := (p.Page-1)*p.PerPage + i + 1
 		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s | %d |\n",
-			num, e.ID, e.CanonicalName, deref(e.EntityType), deref(e.Country), deref(e.FCCFRN), e.FilingCount)
+			num, e.ID, mdCell(e.CanonicalName), deref(e.EntityType), deref(e.Country), deref(e.FCCFRN), e.FilingCount)
 	}
 	b.WriteString("\n_Source: Orbit Sentinel database. Only cite facts shown above._\n")
 	return b.String()
@@ -1386,8 +1385,8 @@ func formatEntity(data json.RawMessage) string {
 		b.WriteString("\n## Filing Breakdown\n")
 		b.WriteString("| Agency | Count |\n")
 		b.WriteString("|--------|-------|\n")
-		for agency, count := range e.FilingStats {
-			fmt.Fprintf(&b, "| %s | %d |\n", agency, count)
+		for _, agency := range slices.Sorted(maps.Keys(e.FilingStats)) {
+			fmt.Fprintf(&b, "| %s | %d |\n", mdCell(agency), e.FilingStats[agency])
 		}
 	}
 
@@ -1408,7 +1407,7 @@ func formatEntity(data json.RawMessage) string {
 		}
 		for _, r := range showRelated {
 			fmt.Fprintf(&b, "| %s | %s | %s | %s | %d |\n",
-				r.ID, r.CanonicalName, deref(r.EntityType), deref(r.Country), r.SharedDockets)
+				r.ID, mdCell(r.CanonicalName), deref(r.EntityType), deref(r.Country), r.SharedDockets)
 		}
 	}
 
@@ -1418,7 +1417,7 @@ func formatEntity(data json.RawMessage) string {
 		b.WriteString("|------|----------|--------|-------|--------|\n")
 		for _, s := range e.Satellites {
 			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n",
-				s.Name, derefInt(s.NORADCatID), deref(s.COSPARID), deref(s.OrbitClass), deref(s.OrbitalStatus))
+				mdCell(s.Name), derefInt(s.NORADCatID), deref(s.COSPARID), deref(s.OrbitClass), deref(s.OrbitalStatus))
 		}
 	}
 
@@ -1429,7 +1428,7 @@ func formatEntity(data json.RawMessage) string {
 		b.WriteString("|------|-----------|------------|\n")
 		for _, l := range e.EntityLinks {
 			fmt.Fprintf(&b, "| %s | %s | %s |\n",
-				l.CanonicalName, l.LinkType, deref(l.Confidence))
+				mdCell(l.CanonicalName), l.LinkType, deref(l.Confidence))
 		}
 	}
 
@@ -1451,7 +1450,7 @@ func formatEntity(data json.RawMessage) string {
 			b.WriteString("|---------|---------|---------------|------------|-------------|---------------|-----------|----------|\n")
 			for _, l := range ir.FAAMPL.Licenses {
 				fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
-					l.LicenseNumber, l.VehicleType,
+					l.LicenseNumber, mdCell(l.VehicleType),
 					formatUSDPtr(l.PreflightTPL), formatUSDPtr(l.FlightTPL), formatUSDPtr(l.ReentryTPL), formatUSDPtr(l.GovtProperty),
 					deref(l.EffectiveDate), deref(l.ExpirationDate))
 			}
@@ -1469,7 +1468,7 @@ func formatEntity(data json.RawMessage) string {
 			b.WriteString("|------|----------|---------|---------|--------|\n")
 			for _, lh := range ir.LossHistory {
 				fmt.Fprintf(&b, "| %d | %s | %s | %s | %s |\n",
-					lh.Year, lh.Operator, lh.Vehicle, lh.Mission, formatUSDPtr(lh.AmountUSD))
+					lh.Year, mdCell(lh.Operator), mdCell(lh.Vehicle), mdCell(lh.Mission), formatUSDPtr(lh.AmountUSD))
 			}
 		}
 	}
@@ -1496,7 +1495,7 @@ func formatEntity(data json.RawMessage) string {
 				cnt = fmt.Sprintf("%d", *md.Count)
 			}
 			fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s | %s |\n",
-				md.Year, md.Domain, md.RecordType, op, veh, amt, cnt)
+				md.Year, md.Domain, md.RecordType, mdCell(op), mdCell(veh), amt, cnt)
 		}
 	}
 
@@ -1514,7 +1513,7 @@ func formatEntity(data json.RawMessage) string {
 				country = "-"
 			}
 			fmt.Fprintf(&b, "| %s | %s | %s | %.2f | %s | %s |\n",
-				m.Name, m.Source, m.MatchType, m.Similarity, country, progs)
+				mdCell(m.Name), mdCell(m.Source), m.MatchType, m.Similarity, country, mdCell(progs))
 		}
 	}
 
@@ -1560,8 +1559,8 @@ func formatLaunchHistory(data json.RawMessage) string {
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Launch History (%d operations)\n\n", env.Total)
-	b.WriteString("| Date | Vehicle | Site | Mission | Outcome |\n")
-	b.WriteString("|------|---------|------|---------|----------|\n")
+	b.WriteString("| Date | Vehicle | Site | Mission | Outcome | Launch Tag |\n")
+	b.WriteString("|------|---------|------|---------|---------|------------|\n")
 
 	for _, raw := range env.Data {
 		var item struct {
@@ -1575,9 +1574,13 @@ func formatLaunchHistory(data json.RawMessage) string {
 		if err := json.Unmarshal(raw, &item); err != nil {
 			continue
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n",
-			item.OperationDate, item.VehicleType, item.LaunchSite,
-			item.MissionName, item.Outcome)
+		tag := item.LaunchTag
+		if tag == "" {
+			tag = "-"
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n",
+			item.OperationDate, mdCell(item.VehicleType), mdCell(item.LaunchSite),
+			mdCell(item.MissionName), item.Outcome, mdCell(tag))
 	}
 
 	return b.String()
@@ -1688,7 +1691,7 @@ func formatTopFilers(data json.RawMessage) string {
 	b.WriteString("| Rank | Entity | Filings |\n")
 	b.WriteString("|------|--------|---------|\n")
 	for _, f := range resp.Filers {
-		fmt.Fprintf(&b, "| %d | %s | %d |\n", f.Rank, f.CanonicalName, f.FilingCount)
+		fmt.Fprintf(&b, "| %d | %s | %d |\n", f.Rank, mdCell(f.CanonicalName), f.FilingCount)
 	}
 	b.WriteString("\n_Source: Orbit Sentinel database._\n")
 	return b.String()
@@ -1730,13 +1733,15 @@ func formatTrends(data json.RawMessage) string {
 	var b strings.Builder
 	b.WriteString("# Filing Trends\n\n")
 
+	var header []string
 	if resp.Filters.Agency != "" {
-		fmt.Fprintf(&b, "**Agency:** %s", resp.Filters.Agency)
+		header = append(header, "**Agency:** "+resp.Filters.Agency)
 	}
 	if resp.Filters.EntityID != "" {
-		fmt.Fprintf(&b, " | **Entity:** %s", resp.Filters.EntityID)
+		header = append(header, "**Entity:** "+resp.Filters.EntityID)
 	}
-	fmt.Fprintf(&b, " | **%d periods of %d months**\n\n", resp.Filters.Periods, resp.Filters.PeriodMonths)
+	header = append(header, fmt.Sprintf("**%d periods of %d months**", resp.Filters.Periods, resp.Filters.PeriodMonths))
+	b.WriteString(strings.Join(header, " | ") + "\n\n")
 
 	b.WriteString("| Period | Filings | Delta | Change |\n")
 	b.WriteString("|--------|---------|-------|--------|\n")
@@ -1763,7 +1768,7 @@ func formatTrends(data json.RawMessage) string {
 				pctChange = fmt.Sprintf("%+.1f%%", *m.PctChange)
 			}
 			fmt.Fprintf(&b, "| %s | %d | %d | %+d | %s |\n",
-				m.CanonicalName, m.CurrentCount, m.PreviousCount, m.Delta, pctChange)
+				mdCell(m.CanonicalName), m.CurrentCount, m.PreviousCount, m.Delta, pctChange)
 		}
 	}
 
@@ -1785,7 +1790,7 @@ func deref(s *string) string {
 	if s == nil {
 		return "-"
 	}
-	return *s
+	return mdCell(*s)
 }
 
 func derefInt(n *int) string {
@@ -1802,11 +1807,57 @@ func derefFloat(f *float64, prec int) string {
 	return strconv.FormatFloat(*f, 'f', prec, 64)
 }
 
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+// mdCell makes DB text safe to interpolate into a Markdown table cell: line
+// breaks become spaces and pipes are escaped. Applying it twice is a no-op, so
+// values that pass through both deref and truncate stay singly escaped.
+func mdCell(s string) string {
+	if !strings.ContainsAny(s, "|\n\r\t") {
 		return s
 	}
-	return s[:maxLen-3] + "..."
+	s = mdCellBreaks.Replace(s)
+	if !strings.Contains(s, "|") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	escaped := false
+	for _, r := range s {
+		if r == '|' && !escaped {
+			b.WriteString("\\|")
+		} else {
+			b.WriteRune(r)
+		}
+		escaped = r == '\\'
+	}
+	return b.String()
+}
+
+var mdCellBreaks = strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ", "\t", " ")
+
+// runeCut returns the largest index at or below n that starts a rune, so a cut
+// there never splits a multi-byte character.
+func runeCut(s string, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	if n >= len(s) {
+		return len(s)
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return n
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return mdCell(s)
+	}
+	if maxLen < 3 {
+		return mdCell(s[:runeCut(s, maxLen)])
+	}
+	// A trailing backslash would escape the ellipsis that follows it.
+	return mdCell(strings.TrimRight(s[:runeCut(s, maxLen-3)], "\\")) + "..."
 }
 
 func formatBondPortfolio(summary json.RawMessage, summaryErr error, portfolio json.RawMessage, portfolioErr error, faaData json.RawMessage) string {
@@ -1901,7 +1952,7 @@ func formatBondPortfolio(summary json.RawMessage, summaryErr error, portfolio js
 						fl = fmt.Sprintf("$%d", *item.FlightTPLUSD)
 					}
 					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n",
-						truncate(item.Operator, 25), item.LicenseNumber, item.VehicleType,
+						truncate(item.Operator, 25), item.LicenseNumber, mdCell(item.VehicleType),
 						truncate(item.LaunchSite, 20), pf, fl)
 				}
 				b.WriteString("\n")
