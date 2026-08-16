@@ -1810,6 +1810,12 @@ func derefFloat(f *float64, prec int) string {
 // mdCell makes DB text safe to interpolate into a Markdown table cell: line
 // breaks become spaces and pipes are escaped. Applying it twice is a no-op, so
 // values that pass through both deref and truncate stay singly escaped.
+//
+// A pipe counts as already escaped only when an odd number of backslashes
+// precedes it; an even number (including a "\\" that renders as one literal
+// backslash) leaves the pipe bare and needing an escape. Text that genuinely
+// contains one literal backslash before a pipe is indistinguishable from
+// pre-escaped input and is left alone.
 func mdCell(s string) string {
 	if !strings.ContainsAny(s, "|\n\r\t") {
 		return s
@@ -1820,14 +1826,20 @@ func mdCell(s string) string {
 	}
 	var b strings.Builder
 	b.Grow(len(s) + 8)
-	escaped := false
-	for _, r := range s {
-		if r == '|' && !escaped {
-			b.WriteString("\\|")
-		} else {
-			b.WriteRune(r)
+	// Byte-wise is safe here: UTF-8 continuation bytes never collide with the
+	// ASCII bytes being matched, and every other byte is copied verbatim.
+	backslashes := 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '|' && backslashes%2 == 0 {
+			b.WriteByte('\\')
 		}
-		escaped = r == '\\'
+		b.WriteByte(c)
+		if c == '\\' {
+			backslashes++
+		} else {
+			backslashes = 0
+		}
 	}
 	return b.String()
 }

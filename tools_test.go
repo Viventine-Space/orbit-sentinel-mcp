@@ -65,6 +65,14 @@ func TestMdCell(t *testing.T) {
 		{"single pipe", "Grant|Deny", "Grant\\|Deny"},
 		{"multiple pipes", "a|b|c", "a\\|b\\|c"},
 		{"already escaped", "a\\|b", "a\\|b"},
+		// One literal backslash before a pipe is byte-identical to a
+		// pre-escaped pipe, so it stays as-is; two backslashes are a literal
+		// backslash plus a bare pipe, which must gain an escape.
+		{"literal backslash then pipe", "path\\|next", "path\\|next"},
+		{"double backslash then pipe", "a\\\\|b", "a\\\\\\|b"},
+		{"triple backslash then pipe", "a\\\\\\|b", "a\\\\\\|b"},
+		{"backslash away from pipe", "a\\b|c", "a\\b\\|c"},
+		{"trailing double backslash then pipe", "a|b\\\\|", "a\\|b\\\\\\|"},
 		{"newline", "first\nsecond", "first second"},
 		{"crlf", "first\r\nsecond", "first second"},
 		{"tab", "first\tsecond", "first second"},
