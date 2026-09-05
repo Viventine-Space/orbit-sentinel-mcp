@@ -808,8 +808,12 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	// Bond portfolio tool — FCC surety bonds + FAA financial responsibility
 	wrapAddTool(s, &mcp.Tool{
-		Name:        "get_bond_portfolio",
-		Description: "Get FCC surety bond portfolio for satellite operators per 47 CFR 25.165. Shows active/theoretical bond amounts, bond releases, and operator details. Also returns summary statistics and FAA financial responsibility data. Use for questions about satellite operator financial obligations, bond compliance, or TPL coverage.",
+		Name: "get_bond_portfolio",
+		// The old description advertised "active/theoretical bond amounts" as
+		// two flavours of the same thing, which is how a summarising client
+		// came to quote our 25.165 arithmetic as an operator's posted bond.
+		// Posted and computed are different claims and the schema says so.
+		Description: "Get FCC surety bond portfolio for satellite operators. Two distinct figures per operator: the POSTED bond, which is an amount an FCC document states and is absent for most authorizations, and the COMPUTED 47 CFR 25.165 liability, which is Orbit Sentinel's own arithmetic and is not a bond anyone has posted. Never report a computed figure as an operator's actual bond, and read 'not documented' as unknown rather than zero. Also returns summary statistics and FAA financial responsibility data. Use for questions about satellite operator financial obligations, bond compliance, or TPL coverage.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input getBondPortfolioInput) (*mcp.CallToolResult, any, error) {
 		// Always fetch summary
 		summary, summaryErr := client.GetBondSummary(ctx)
@@ -1883,25 +1887,59 @@ func truncate(s string, maxLen int) string {
 	return mdCell(strings.TrimRight(s[:runeCut(s, maxLen-3)], "\\")) + "..."
 }
 
+// usdOrUnknown renders a nullable dollar figure. A missing value gets the
+// caller's words for absence, never "$0" — the same reason the FAA TPL table
+// below prints "N/A" rather than zeroing a figure it does not have.
+//
+// Distinct from formatUSDPtr, which takes *int64 and always says "-": here the
+// words matter. A bond column has to distinguish "no document states an amount"
+// from "the bond was released and is now zero", and both appear in the same
+// table. Keeps the bond table's existing "$%.0f" so this change is about the
+// null semantics and not about reformatting every figure.
+func usdOrUnknown(v *float64, absent string) string {
+	if v == nil {
+		return absent
+	}
+	return fmt.Sprintf("$%.0f", *v)
+}
+
 func formatBondPortfolio(summary json.RawMessage, summaryErr error, portfolio json.RawMessage, portfolioErr error, faaData json.RawMessage) string {
 	var b strings.Builder
 
 	// Summary section
 	if summaryErr == nil && summary != nil {
+		// DocumentedBonds and TotalComputedBondUSD are pointers because they do
+		// not exist before the API release that split observed bonds from
+		// computed ones. Absent and zero have to stay distinguishable, or this
+		// renderer reports "0 documented bonds" against an older API.
 		var s struct {
-			TotalOperators     int     `json:"total_operators"`
-			ActiveBonds        int     `json:"active_bonds"`
-			ReleasedBonds      int     `json:"released_bonds"`
-			TotalActiveBondUSD float64 `json:"total_active_bond_usd"`
-			NGSOActiveBondUSD  float64 `json:"ngso_active_bond_usd"`
-			GSOActiveBondUSD   float64 `json:"gso_active_bond_usd"`
-			TotalEvents        int     `json:"total_events"`
+			TotalOperators       int      `json:"total_operators"`
+			ActiveBonds          int      `json:"active_bonds"`
+			ReleasedBonds        int      `json:"released_bonds"`
+			TotalActiveBondUSD   float64  `json:"total_active_bond_usd"`
+			NGSOActiveBondUSD    float64  `json:"ngso_active_bond_usd"`
+			GSOActiveBondUSD     float64  `json:"gso_active_bond_usd"`
+			DocumentedBonds      *int     `json:"documented_bonds"`
+			TotalComputedBondUSD *float64 `json:"total_computed_bond_usd"`
+			TotalEvents          int      `json:"total_events"`
 		}
 		if err := json.Unmarshal(summary, &s); err == nil {
 			b.WriteString("# FCC Surety Bond Portfolio Summary\n\n")
 			fmt.Fprintf(&b, "- **Total Operators:** %d (%d active, %d released)\n", s.TotalOperators, s.ActiveBonds, s.ReleasedBonds)
-			fmt.Fprintf(&b, "- **Total Active Bond Exposure:** $%.0f\n", s.TotalActiveBondUSD)
-			fmt.Fprintf(&b, "- **NGSO:** $%.0f | **GSO:** $%.0f\n", s.NGSOActiveBondUSD, s.GSOActiveBondUSD)
+			if s.DocumentedBonds != nil {
+				// The totals cover only the authorizations whose bond an FCC
+				// document states. Publishing the sum without that denominator
+				// invites reading it as the industry's whole exposure.
+				fmt.Fprintf(&b, "- **Posted Bonds (from FCC documents):** $%.0f across %d of %d authorizations\n",
+					s.TotalActiveBondUSD, *s.DocumentedBonds, s.TotalOperators)
+				fmt.Fprintf(&b, "- **NGSO:** $%.0f | **GSO:** $%.0f\n", s.NGSOActiveBondUSD, s.GSOActiveBondUSD)
+				if s.TotalComputedBondUSD != nil {
+					fmt.Fprintf(&b, "- **47 CFR 25.165 computed liability:** $%.0f — our own arithmetic, not bonds anyone has posted\n", *s.TotalComputedBondUSD)
+				}
+			} else {
+				fmt.Fprintf(&b, "- **Total Active Bond Exposure:** $%.0f\n", s.TotalActiveBondUSD)
+				fmt.Fprintf(&b, "- **NGSO:** $%.0f | **GSO:** $%.0f\n", s.NGSOActiveBondUSD, s.GSOActiveBondUSD)
+			}
 			fmt.Fprintf(&b, "- **Bond Events:** %d\n\n", s.TotalEvents)
 		}
 	}
@@ -1913,30 +1951,47 @@ func formatBondPortfolio(summary json.RawMessage, summaryErr error, portfolio js
 			Pagination paginationData  `json:"pagination"`
 		}
 		if err := json.Unmarshal(portfolio, &env); err == nil {
+			// Every dollar field is a pointer. The API now returns null where no
+			// FCC document states an amount, and a plain float64 decodes null
+			// to 0 — which would print "$0" and tell the reader the operator has
+			// no bond obligation. That is a stronger false claim than the
+			// fabricated figure this change exists to remove: a wrong number at
+			// least implies an obligation exists, while "$0" denies one.
 			var items []struct {
-				OperatorName       string  `json:"operator_name"`
-				SystemName         string  `json:"system_name"`
-				CallSign           string  `json:"call_sign"`
-				OrbitType          string  `json:"orbit_type"`
-				ActiveBondUSD      float64 `json:"active_bond_usd"`
-				TheoreticalBondUSD float64 `json:"theoretical_bond_usd"`
-				BondReleased       bool    `json:"bond_released"`
-				DaysSince          int     `json:"days_since_authorization"`
+				OperatorName       string   `json:"operator_name"`
+				SystemName         string   `json:"system_name"`
+				CallSign           string   `json:"call_sign"`
+				OrbitType          string   `json:"orbit_type"`
+				ActiveBondUSD      *float64 `json:"active_bond_usd"`
+				ObservedBondSource *string  `json:"observed_bond_source"`
+				ComputedBondUSD    *float64 `json:"computed_bond_usd"`
+				TheoreticalBondUSD *float64 `json:"theoretical_bond_usd"`
+				BondReleased       bool     `json:"bond_released"`
+				DaysSince          *int     `json:"days_since_authorization"`
 			}
 			if err := json.Unmarshal(env.Data, &items); err == nil {
 				p := env.Pagination
 				fmt.Fprintf(&b, "## Bond Portfolio (page %d of %d, %d total)\n\n", p.Page, p.TotalPages, p.Total)
 				if len(items) > 0 {
-					b.WriteString("| Operator | System | Call Sign | Orbit | Active Bond | Status |\n")
-					b.WriteString("|----------|--------|-----------|-------|-------------|--------|\n")
+					b.WriteString("| Operator | System | Call Sign | Orbit | Posted Bond | 25.165 Computed | Status |\n")
+					b.WriteString("|----------|--------|-----------|-------|-------------|-----------------|--------|\n")
 					for _, item := range items {
 						status := "Active"
 						if item.BondReleased {
 							status = "Released"
 						}
-						fmt.Fprintf(&b, "| %s | %s | %s | %s | $%.0f | %s |\n",
+						// Fall back to theoretical_bond_usd so this renderer is
+						// correct against an API release that has not split the
+						// columns yet.
+						computed := item.ComputedBondUSD
+						if computed == nil {
+							computed = item.TheoreticalBondUSD
+						}
+						fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n",
 							truncate(item.OperatorName, 30), truncate(item.SystemName, 20),
-							item.CallSign, item.OrbitType, item.ActiveBondUSD, status)
+							item.CallSign, item.OrbitType,
+							usdOrUnknown(item.ActiveBondUSD, "not documented"),
+							usdOrUnknown(computed, "N/A"), status)
 					}
 				} else {
 					b.WriteString("No bond portfolio entries match the criteria.\n")
@@ -1986,7 +2041,7 @@ func formatBondPortfolio(summary json.RawMessage, summaryErr error, portfolio js
 	if b.Len() == 0 {
 		return "No bond portfolio data available."
 	}
-	b.WriteString("_Source: Orbit Sentinel — FCC 47 CFR 25.165 bond calculations + FAA TPL data._\n")
+	b.WriteString("_Source: Orbit Sentinel. Posted bonds are amounts stated in FCC documents; 25.165 computed figures are Orbit Sentinel's own arithmetic, not bonds anyone has posted. \"not documented\" means unknown, not zero. FAA TPL data as filed._\n")
 	return b.String()
 }
 

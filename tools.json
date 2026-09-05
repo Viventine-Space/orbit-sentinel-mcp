@@ -49,7 +49,7 @@
   },
   {
     "name": "get_bond_portfolio",
-    "desc": "Get FCC surety bond portfolio for satellite operators per 47 CFR 25.165. Shows active/theoretical bond amounts, bond releases, and operator details. Also returns summary statistics and FAA financial responsibility data. Use for questions about satellite operator financial obligations, bond compliance, or TPL coverage."
+    "desc": "Get FCC surety bond portfolio for satellite operators. Two distinct figures per operator: the POSTED bond, which is an amount an FCC document states and is absent for most authorizations, and the COMPUTED 47 CFR 25.165 liability, which is Orbit Sentinel's own arithmetic and is not a bond anyone has posted. Never report a computed figure as an operator's actual bond, and read 'not documented' as unknown rather than zero. Also returns summary statistics and FAA financial responsibility data. Use for questions about satellite operator financial obligations, bond compliance, or TPL coverage."
   },
   {
     "name": "search_spectrum",

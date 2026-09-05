@@ -417,3 +417,91 @@ func TestResearchResultFailed(t *testing.T) {
 		t.Errorf("Failed() order = %+v, want entities then semantic", failed)
 	}
 }
+
+func TestUsdOrUnknown(t *testing.T) {
+	if got := usdOrUnknown(nil, "not documented"); got != "not documented" {
+		t.Errorf("usdOrUnknown(nil) = %q, want not documented", got)
+	}
+	zero := 0.0
+	if got := usdOrUnknown(&zero, "not documented"); got != "$0" {
+		t.Errorf("usdOrUnknown(0) = %q, want $0 — a released bond really is zero", got)
+	}
+	v := 3680000.0
+	if got := usdOrUnknown(&v, "not documented"); got != "$3680000" {
+		t.Errorf("usdOrUnknown(3680000) = %q, want $3680000", got)
+	}
+}
+
+// An operator whose bond amount no FCC document states must not be rendered as
+// "$0". Before v0.6.5 active_bond_usd was a plain float64, so the API's null
+// decoded to 0 and the table asserted that 190 of 237 operators had no bond
+// obligation — a stronger false claim than the fabricated figure the API-side
+// fix removed.
+func TestFormatBondPortfolio_NullBondIsNotZero(t *testing.T) {
+	summary := json.RawMessage(`{
+		"total_operators": 237, "active_bonds": 196, "released_bonds": 41,
+		"total_active_bond_usd": 52870000, "ngso_active_bond_usd": 20000000,
+		"gso_active_bond_usd": 32870000, "documented_bonds": 47,
+		"total_computed_bond_usd": 612277577, "total_events": 509}`)
+	portfolio := json.RawMessage(`{"data":[
+		{"operator_name":"Undocumented Corp","system_name":"Sys","call_sign":"S1","orbit_type":"GSO",
+		 "active_bond_usd":null,"computed_bond_usd":3000000,"bond_released":false},
+		{"operator_name":"Documented Corp","system_name":"Sys2","call_sign":"S2","orbit_type":"NGSO",
+		 "active_bond_usd":3680000,"observed_bond_source":"document","computed_bond_usd":5000000,"bond_released":false}
+	],"pagination":{"page":1,"total_pages":1,"total":2}}`)
+
+	out := formatBondPortfolio(summary, nil, portfolio, nil, nil)
+
+	if strings.Contains(out, "| $0 |") {
+		t.Errorf("rendered $0 for an undocumented bond:\n%s", out)
+	}
+	if !strings.Contains(out, "not documented") {
+		t.Errorf("missing 'not documented' for the null bond:\n%s", out)
+	}
+	if !strings.Contains(out, "$3680000") {
+		t.Errorf("documented bond not rendered:\n%s", out)
+	}
+	// The denominator has to travel with the total, or $52.8M reads as the
+	// industry's whole exposure rather than the part we can evidence.
+	if !strings.Contains(out, "47 of 237") {
+		t.Errorf("summary omits the documented-bond denominator:\n%s", out)
+	}
+	if !strings.Contains(out, "not bonds anyone has posted") {
+		t.Errorf("computed total is not labelled as arithmetic:\n%s", out)
+	}
+}
+
+// v0.6.5 must render correctly against the API release that PRECEDES the column
+// split, because it ships first. Against the old payload every dollar field is
+// a present number and no null exists, so the table reads exactly as v0.6.4 did
+// and theoretical_bond_usd stands in for the computed column.
+func TestFormatBondPortfolio_OldAPIPayloadStillRenders(t *testing.T) {
+	summary := json.RawMessage(`{
+		"total_operators": 237, "active_bonds": 196, "released_bonds": 41,
+		"total_active_bond_usd": 561476018, "ngso_active_bond_usd": 300000000,
+		"gso_active_bond_usd": 261476018, "total_events": 1124}`)
+	portfolio := json.RawMessage(`{"data":[
+		{"operator_name":"Legacy Corp","system_name":"Sys","call_sign":"S1","orbit_type":"GSO",
+		 "active_bond_usd":3000000,"theoretical_bond_usd":3000000,"bond_released":false,
+		 "days_since_authorization":2000}
+	],"pagination":{"page":1,"total_pages":1,"total":1}}`)
+
+	out := formatBondPortfolio(summary, nil, portfolio, nil, nil)
+
+	if !strings.Contains(out, "$3000000") {
+		t.Errorf("old-API figure not rendered:\n%s", out)
+	}
+	// Checked against the table row, not the whole output: the footer explains
+	// the "not documented" convention regardless of whether any cell uses it.
+	if strings.Contains(out, "| not documented |") {
+		t.Errorf("old API has no nulls; no cell should read as undocumented:\n%s", out)
+	}
+	// Without documented_bonds the summary cannot state a denominator and must
+	// not invent one by treating the absent field as zero.
+	if strings.Contains(out, "0 of 237") {
+		t.Errorf("absent documented_bonds rendered as zero:\n%s", out)
+	}
+	if !strings.Contains(out, "Total Active Bond Exposure") {
+		t.Errorf("old-API summary line missing:\n%s", out)
+	}
+}
