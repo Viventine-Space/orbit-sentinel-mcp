@@ -274,19 +274,62 @@ func (c *APIClient) GetMilestonesSummary(ctx context.Context) (json.RawMessage, 
 	return c.doGet(ctx, "/api/v1/milestones/summary")
 }
 
+// Research leg names. These are contract: they appear verbatim in the
+// machine-readable leg-status block that formatResearch emits.
+const (
+	legFilings  = "filings"
+	legEntities = "entities"
+	legSemantic = "semantic"
+)
+
+// Leg statuses.
+const (
+	legOK      = "ok"      // the leg ran and its results are included
+	legFailed  = "failed"  // the leg errored; the others are still included
+	legSkipped = "skipped" // the leg was not run
+)
+
+// ResearchLeg is the outcome of one of the parallel searches.
+type ResearchLeg struct {
+	Leg    string `json:"leg"`
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
+}
+
 // ResearchResult holds the combined results of parallel API searches.
+//
+// A leg that fails must never discard the legs that succeeded, so every leg
+// reports independently and the caller always gets whatever came back. Legs
+// is written to fixed slots rather than appended, so its order does not
+// depend on which goroutine finished first.
 type ResearchResult struct {
 	Filings  json.RawMessage
 	Entities json.RawMessage
 	Semantic json.RawMessage
-	Errors   []string
+	Legs     []ResearchLeg
+}
+
+// Failed reports whether any leg did not return results.
+func (r *ResearchResult) Failed() []ResearchLeg {
+	var out []ResearchLeg
+	for _, l := range r.Legs {
+		if l.Status != legOK {
+			out = append(out, l)
+		}
+	}
+	return out
 }
 
 // Research performs parallel filing search, entity search, and semantic search.
 func (c *APIClient) Research(ctx context.Context, question string, focus string, agency string) (*ResearchResult, error) {
 	var wg sync.WaitGroup
-	res := &ResearchResult{}
+	res := &ResearchResult{Legs: make([]ResearchLeg, 3)}
 	var mu sync.Mutex
+
+	// Fixed slots keep the reported order stable regardless of finish order.
+	res.Legs[0] = ResearchLeg{Leg: legFilings, Status: legOK}
+	res.Legs[1] = ResearchLeg{Leg: legEntities, Status: legOK}
+	res.Legs[2] = ResearchLeg{Leg: legSemantic, Status: legOK}
 
 	filingKeywords := extractFilingKeywords(question)
 	entityKeywords := extractEntityNames(question)
@@ -309,7 +352,7 @@ func (c *APIClient) Research(ctx context.Context, question string, focus string,
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
-			res.Errors = append(res.Errors, "filings: "+err.Error())
+			res.Legs[0] = ResearchLeg{Leg: legFilings, Status: legFailed, Detail: err.Error()}
 		} else {
 			res.Filings = data
 		}
@@ -330,7 +373,7 @@ func (c *APIClient) Research(ctx context.Context, question string, focus string,
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
-			res.Errors = append(res.Errors, "entities: "+err.Error())
+			res.Legs[1] = ResearchLeg{Leg: legEntities, Status: legFailed, Detail: err.Error()}
 		} else {
 			res.Entities = data
 		}
@@ -348,7 +391,7 @@ func (c *APIClient) Research(ctx context.Context, question string, focus string,
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
-			res.Errors = append(res.Errors, "semantic: "+err.Error())
+			res.Legs[2] = ResearchLeg{Leg: legSemantic, Status: legFailed, Detail: err.Error()}
 		} else {
 			res.Semantic = data
 		}
@@ -471,34 +514,25 @@ func extractEntityNames(question string) string {
 		return strings.Join(found, " ")
 	}
 
-	// Fall back: look for capitalized multi-word sequences or acronyms
-	words := strings.Fields(question)
-	var caps []string
-	for _, w := range words {
-		w = strings.Trim(w, ".,;:!?\"'()[]{}*")
-		if len(w) < 2 {
-			continue
-		}
-		if w == strings.ToUpper(w) && len(w) >= 2 && len(w) <= 6 {
-			// Skip numbers
-			if _, err := strconv.Atoi(w); err == nil {
-				continue
-			}
-			wl := strings.ToLower(w)
-			skip := map[string]bool{
-				"fcc": true, "itu": true, "faa": true, "llc": true, "inc": true,
-				"the": true, "and": true, "for": true, "usa": true,
-			}
-			if !skip[wl] {
-				caps = append(caps, w)
-			}
-		}
-	}
-	if len(caps) > 0 {
-		return strings.Join(caps, " ")
-	}
-
-	return ""
+	// Fall back to the question's own keywords and let the API pick the terms.
+	//
+	// This used to harvest any 2-6 character all-caps word as an acronym,
+	// which is wrong in a way that only shows up on real traffic: a client
+	// writing "NORAD OR COSPAR OR ARKTIKA-M" has every "OR" harvested, and
+	// hyphenated designators are too long to survive the length test. One
+	// client's entity searches were literally
+	//
+	//	NORAD OR OR COSPAR OR OR OR OR OR N2 OR № OR N2 OR OR NORAD OR ...
+	//
+	// for months — 519 requests, every one HTTP 200, every one zero results.
+	//
+	// Picking terms out of a question needs to know how common each one is in
+	// the entity corpus, which only the server knows, so the right split is
+	// for this to send the substantive words and for GET /api/v1/entities to
+	// weight them. extractFilingKeywords already does exactly the stripping
+	// wanted here — question words, agency names, generic filing vocabulary —
+	// so the entity and filing legs now search on the same cleaned text.
+	return extractFilingKeywords(question)
 }
 
 func buildPath(base string, params map[string]string) string {

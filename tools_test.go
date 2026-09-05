@@ -154,10 +154,20 @@ func TestExtractEntityNames(t *testing.T) {
 		{"known operator", "How many filings does SpaceX have?", "spacex"},
 		{"multiple known operators", "Compare Viasat and Telesat filings", "viasat telesat"},
 		{"short term needs word boundary", "What is SES filing about?", "ses"},
-		{"short term substring ignored", "sessions about spectrum", ""},
-		{"acronym fallback", "filings mentioning NGSO coordination", "NGSO"},
-		{"skips agency acronyms", "recent FCC activity", ""},
+		// With no known operator named, the question's own keywords go to the
+		// API, which weights them against the entity corpus.
+		{"short term substring ignored", "sessions about spectrum", "sessions spectrum"},
+		{"falls back to question keywords", "filings mentioning NGSO coordination", "mentioning ngso coordination"},
+		{"strips agency and generic words", "recent FCC activity", "activity"},
 		{"empty question", "", ""},
+		// The old acronym fallback harvested every all-caps 2-6 char word,
+		// so a client OR-ing designators together had its entity search
+		// reduced to a wall of "OR". Nothing that follows may reintroduce it.
+		{
+			"does not harvest boolean operators",
+			"NORAD OR COSPAR OR ARKTIKA-M OR ROSCOSMOS",
+			"norad cospar arktika-m roscosmos",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -330,5 +340,80 @@ func TestFormatLaunchHistoryRendersLaunchTag(t *testing.T) {
 
 	if got := formatLaunchHistory(data); got != want {
 		t.Errorf("formatLaunchHistory output mismatch\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// A failing leg of `research` must not discard the legs that succeeded. This
+// is the behaviour that turned one client's long queries into an unusable
+// tool: the entity leg's result was worthless and the filings leg's HTTP 400
+// was the only thing the caller could see.
+func TestFormatResearch_PartialFailureKeepsSucceedingLegs(t *testing.T) {
+	res := &ResearchResult{
+		Entities: json.RawMessage(`{"entities":[],"total":0}`),
+		Semantic: json.RawMessage(`{"results":[]}`),
+		Legs: []ResearchLeg{
+			{Leg: legFilings, Status: legFailed, Detail: "API returned 400: search query too long"},
+			{Leg: legEntities, Status: legOK},
+			{Leg: legSemantic, Status: legOK},
+		},
+	}
+	out := formatResearch(res)
+
+	if !strings.Contains(out, "Related Entities") || !strings.Contains(out, "Semantic Matches") {
+		t.Errorf("succeeding legs must still be rendered:\n%s", out)
+	}
+	if !strings.Contains(out, "```json") {
+		t.Errorf("leg status must be machine-readable JSON:\n%s", out)
+	}
+
+	// The JSON block must parse and name only the leg that failed.
+	start := strings.Index(out, "```json\n")
+	if start < 0 {
+		t.Fatalf("no json block:\n%s", out)
+	}
+	start += len("```json\n")
+	end := strings.Index(out[start:], "\n```")
+	if end < 0 {
+		t.Fatalf("unterminated json block:\n%s", out)
+	}
+	var legs []ResearchLeg
+	if err := json.Unmarshal([]byte(out[start:start+end]), &legs); err != nil {
+		t.Fatalf("leg status is not valid JSON: %v (%q)", err, out[start:start+end])
+	}
+	if len(legs) != 1 || legs[0].Leg != legFilings || legs[0].Status != legFailed {
+		t.Errorf("legs = %+v, want only the failed filings leg", legs)
+	}
+	if legs[0].Detail == "" {
+		t.Errorf("a failed leg must say why: %+v", legs[0])
+	}
+}
+
+func TestFormatResearch_AllLegsOKEmitsNoWarning(t *testing.T) {
+	res := &ResearchResult{
+		Filings: json.RawMessage(`{"filings":[],"total":0}`),
+		Legs: []ResearchLeg{
+			{Leg: legFilings, Status: legOK},
+			{Leg: legEntities, Status: legOK},
+			{Leg: legSemantic, Status: legOK},
+		},
+	}
+	out := formatResearch(res)
+	if strings.Contains(out, "Incomplete results") || strings.Contains(out, "```json") {
+		t.Errorf("a fully successful fan-out must not warn:\n%s", out)
+	}
+}
+
+func TestResearchResultFailed(t *testing.T) {
+	res := &ResearchResult{Legs: []ResearchLeg{
+		{Leg: legFilings, Status: legOK},
+		{Leg: legEntities, Status: legFailed, Detail: "boom"},
+		{Leg: legSemantic, Status: legSkipped, Detail: "no query"},
+	}}
+	failed := res.Failed()
+	if len(failed) != 2 {
+		t.Fatalf("Failed() = %+v, want the failed and skipped legs", failed)
+	}
+	if failed[0].Leg != legEntities || failed[1].Leg != legSemantic {
+		t.Errorf("Failed() order = %+v, want entities then semantic", failed)
 	}
 }

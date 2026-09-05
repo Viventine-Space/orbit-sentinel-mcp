@@ -1633,8 +1633,19 @@ func formatResearch(res *ResearchResult) string {
 
 	b.WriteString("# Research Results\n\n")
 
-	if len(res.Errors) > 0 {
-		b.WriteString("**Partial errors:** " + strings.Join(res.Errors, "; ") + "\n\n")
+	// Leg status, always emitted, as JSON so a caller can act on it rather
+	// than parse prose. `research` fans out to three independent searches and
+	// one of them failing must not look like the whole tool failing, nor like
+	// a clean empty result — a reader that cannot tell those apart will
+	// report "no matching data found" for data that was never searched.
+	if legs := res.Failed(); len(legs) > 0 {
+		status, err := json.Marshal(legs)
+		if err == nil {
+			b.WriteString("**Incomplete results — these searches did not run:**\n\n")
+			b.WriteString("```json\n" + string(status) + "\n```\n\n")
+			b.WriteString("The sections below are what the remaining searches returned. " +
+				"Do not describe a topic as absent from the database on the strength of a failed leg.\n\n")
+		}
 	}
 
 	// Filings section
