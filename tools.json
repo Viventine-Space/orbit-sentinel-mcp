@@ -81,6 +81,6 @@
   },
   {
     "name": "milestone_adherence",
-    "desc": "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|met_late|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts."
+    "desc": "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Grading is deliberately asymmetric — an adverse grade must be earned, a favourable grade must be labelled. 'missed' and 'met_late' appear only where a human verified a cited FCC document; otherwise the row reads 'verification_required', which asserts nothing about the operator and must not be reported as a miss. Favourable grades are never withheld, so read verification_status: 'arithmetic_corroborated' means the deployment counts independently agree — a computation, not a person, did the corroborating — and 'uncorroborated' means the arithmetic is SILENT, not that it disagrees; no favourable grade is currently contradicted by the data. computed_grade always carries the raw arithmetic even where classification withholds it. Filter by call_sign, classification, is_ngso; set summary=true for aggregate counts, which include withheld_adverse and uncorroborated_favourable."
   }
 ]

@@ -181,7 +181,7 @@ type getBondPortfolioInput struct {
 
 type milestoneAdherenceInput struct {
 	CallSign       string `json:"call_sign,omitempty" jsonschema:"Filter by FCC call sign (exact match)"`
-	Classification string `json:"classification,omitempty" jsonschema:"Filter by classification: met|met_late|pending|extended|waived|missed|missed_unverified|unknown"`
+	Classification string `json:"classification,omitempty" jsonschema:"Filter by classification: met|met_computed|met_late|pending|extended|waived|missed|verification_required|not_deployment_obligation|attribution_ambiguous|attribution_undetermined|unknown. 'missed_unverified' no longer exists — unverified adverse grades are now 'verification_required'"`
 	IsNGSO         *bool  `json:"is_ngso,omitempty" jsonschema:"Filter by orbit type: true for NGSO, false for GSO"`
 	Summary        bool   `json:"summary,omitempty" jsonschema:"If true, return aggregate counts by classification/orbit type instead of individual rows"`
 }
@@ -981,7 +981,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "milestone_adherence",
-		Description: "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Filter by call_sign, classification (met|met_late|pending|extended|waived|missed|missed_unverified|unknown), is_ngso; set summary=true for aggregate counts.",
+		Description: "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Grading is deliberately asymmetric — an adverse grade must be earned, a favourable grade must be labelled. 'missed' and 'met_late' appear only where a human verified a cited FCC document; otherwise the row reads 'verification_required', which asserts nothing about the operator and must not be reported as a miss. Favourable grades are never withheld, so read verification_status: 'arithmetic_corroborated' means the deployment counts independently agree — a computation, not a person, did the corroborating — and 'uncorroborated' means the arithmetic is SILENT, not that it disagrees; no favourable grade is currently contradicted by the data. computed_grade always carries the raw arithmetic even where classification withholds it. Filter by call_sign, classification, is_ngso; set summary=true for aggregate counts, which include withheld_adverse and uncorroborated_favourable.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input milestoneAdherenceInput) (*mcp.CallToolResult, any, error) {
 		if input.Summary {
 			data, err := client.GetMilestonesSummary(ctx)
