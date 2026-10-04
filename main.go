@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -14,6 +15,8 @@ import (
 var version = "dev"
 
 func main() {
+	// JSON lines to stdout: the container logged nothing at all until 0.6.7 (B-08).
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v" || os.Args[1] == "version") {
 		fmt.Println("orbit-sentinel-mcp " + version)
 		return
@@ -22,6 +25,8 @@ func main() {
 	_ = godotenv.Load() // optional — .env not required
 
 	if addr := os.Getenv("MCP_HTTP_ADDR"); addr != "" {
+		slog.Info("orbit-sentinel-mcp starting", "version", version, "transport", "http", "addr", addr,
+			"api_url", NewAPIClient().BaseURL, "stateless", true, "anon_rate_limit_per_min", 30)
 		if err := runHTTP(addr); err != nil {
 			log.Fatal(err)
 		}

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"maps"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -579,8 +581,72 @@ func wrapAddTool[In, Out any](s *mcp.Server, tool *mcp.Tool, handler func(ctx co
 	}
 	tool.Annotations.ReadOnlyHint = true
 	mcp.AddTool(s, tool, func(ctx context.Context, req *mcp.CallToolRequest, input In) (*mcp.CallToolResult, Out, error) {
-		return handler(WithMCPTool(ctx, name), req, input)
+		start := time.Now()
+		res, out, err := handler(WithMCPTool(ctx, name), req, input)
+		logToolCall(ctx, name, start, res, err)
+		return res, out, err
 	})
+}
+
+// logToolCall writes one line per tool call: tool, duration, outcome class,
+// how the caller authenticated and the key prefix the API also logs. Never the
+// arguments, the token or the result (B-08: the container had logged nothing
+// since it started).
+func logToolCall(ctx context.Context, tool string, start time.Time, res *mcp.CallToolResult, err error) {
+	outcome := "ok"
+	switch {
+	case err != nil:
+		outcome = "handler_error"
+	case res != nil && res.IsError:
+		outcome = classifyErrorText(firstText(res))
+	}
+	kind, prefix := callerKind(apiKeyFromContext(ctx))
+	slog.Info("tool call", "tool", tool, "ms", time.Since(start).Milliseconds(), "outcome", outcome, "auth", kind, "key_prefix", prefix)
+}
+
+func firstText(res *mcp.CallToolResult) string {
+	for _, c := range res.Content {
+		if t, ok := c.(*mcp.TextContent); ok {
+			return t.Text
+		}
+	}
+	return ""
+}
+
+// classifyErrorText maps an error result's text to an outcome class using the
+// API error shape ("API returned NNN: …").
+func classifyErrorText(text string) string {
+	if i := strings.Index(text, "API returned "); i >= 0 && len(text) >= i+16 {
+		switch text[i+13] {
+		case '4':
+			return "api_4xx"
+		case '5':
+			return "api_5xx"
+		}
+	}
+	if strings.Contains(text, "is required") || strings.Contains(text, "must be") {
+		return "invalid_args"
+	}
+	if strings.Contains(text, "failed:") || strings.Contains(text, "context deadline") {
+		return "transport"
+	}
+	return "error"
+}
+
+// callerKind reports none / key / jwt and the key prefix (the eight
+// characters the API's audit log identifies a key by; empty for JWTs).
+func callerKind(tok string) (string, string) {
+	switch {
+	case tok == "":
+		return "none", ""
+	case looksLikeJWT(tok):
+		return "jwt", ""
+	}
+	p := strings.TrimPrefix(tok, "osk_")
+	if len(p) > 8 {
+		p = p[:8]
+	}
+	return "key", p
 }
 
 func registerTools(s *mcp.Server, client *APIClient) {
@@ -589,11 +655,11 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		Description: "Primary research tool — searches filings, entities, and semantic index in parallel. Use this FIRST for any question. Pass the agency parameter for agency-specific questions (e.g., agency=\"FCC\" for FCC questions).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input researchInput) (*mcp.CallToolResult, any, error) {
 		if input.Question == "" {
-			return textResult("Error: question is required"), nil, nil
+			return errorResult("Error: question is required"), nil, nil
 		}
 		result, err := client.Research(ctx, input.Question, input.Focus, input.Agency)
 		if err != nil {
-			return textResult("Error: " + err.Error()), nil, nil
+			return errorResult("Error: " + err.Error()), nil, nil
 		}
 		return textResult(formatResearch(result)), nil, nil
 	})
@@ -620,14 +686,14 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		params["per_page"] = strconv.Itoa(perPage)
 		data, err := client.SearchFilings(ctx, params)
 		if err != nil {
-			return textResult("Error searching filings: " + err.Error()), nil, nil
+			return errorResult("Error searching filings: " + err.Error()), nil, nil
 		}
 		if input.CountOnly {
 			var countResp struct {
 				Total int `json:"total"`
 			}
 			if err := json.Unmarshal(data, &countResp); err != nil {
-				return textResult("Error parsing count response: " + err.Error()), nil, nil
+				return errorResult("Error parsing count response: " + err.Error()), nil, nil
 			}
 			return textResult(fmt.Sprintf("**Total filings matching query:** %d", countResp.Total)), nil, nil
 		}
@@ -640,7 +706,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input getFilingInput) (*mcp.CallToolResult, any, error) {
 		data, err := client.GetFiling(ctx, input.ID)
 		if err != nil {
-			return textResult("Error fetching filing: " + err.Error()), nil, nil
+			return errorResult("Error fetching filing: " + err.Error()), nil, nil
 		}
 		return textResult(formatFiling(data)), nil, nil
 	})
@@ -663,7 +729,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.SearchPositions(ctx, params)
 		if err != nil {
-			return textResult("Error searching positions: " + err.Error()), nil, nil
+			return errorResult("Error searching positions: " + err.Error()), nil, nil
 		}
 		return textResult(formatPositionSearch(data)), nil, nil
 	})
@@ -674,7 +740,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSemanticInput) (*mcp.CallToolResult, any, error) {
 		data, err := client.SearchSemanticFull(ctx, SemanticSearchParams(input))
 		if err != nil {
-			return textResult("Error in semantic search: " + err.Error()), nil, nil
+			return errorResult("Error in semantic search: " + err.Error()), nil, nil
 		}
 		return textResult(formatSemanticResults(data)), nil, nil
 	})
@@ -696,7 +762,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		params["per_page"] = strconv.Itoa(perPage)
 		data, err := client.SearchEntities(ctx, params)
 		if err != nil {
-			return textResult("Error searching entities: " + err.Error()), nil, nil
+			return errorResult("Error searching entities: " + err.Error()), nil, nil
 		}
 		return textResult(formatEntityList(data)), nil, nil
 	})
@@ -714,7 +780,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.GetEntityProfile(ctx, input.ID, params)
 		if err != nil {
-			return textResult("Error fetching entity: " + err.Error()), nil, nil
+			return errorResult("Error fetching entity: " + err.Error()), nil, nil
 		}
 		return textResult(formatEntity(data)), nil, nil
 	})
@@ -725,7 +791,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		data, err := client.GetStatus(ctx)
 		if err != nil {
-			return textResult("Error fetching status: " + err.Error()), nil, nil
+			return errorResult("Error fetching status: " + err.Error()), nil, nil
 		}
 		return textResult(formatStatus(data)), nil, nil
 	})
@@ -743,7 +809,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.GetTopFilers(ctx, params)
 		if err != nil {
-			return textResult("Error fetching top filers: " + err.Error()), nil, nil
+			return errorResult("Error fetching top filers: " + err.Error()), nil, nil
 		}
 		return textResult(formatTopFilers(data)), nil, nil
 	})
@@ -758,7 +824,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.GetFilingDistribution(ctx, params)
 		if err != nil {
-			return textResult("Error fetching distribution: " + err.Error()), nil, nil
+			return errorResult("Error fetching distribution: " + err.Error()), nil, nil
 		}
 		return textResult(formatFilingDistribution(data)), nil, nil
 	})
@@ -779,7 +845,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.GetFilingTrends(ctx, params)
 		if err != nil {
-			return textResult("Error fetching trends: " + err.Error()), nil, nil
+			return errorResult("Error fetching trends: " + err.Error()), nil, nil
 		}
 		return textResult(formatTrends(data)), nil, nil
 	})
@@ -790,7 +856,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		Description: "Get launch history for a space entity. Returns launches from the FAA/GCAT database including vehicle type, launch site, outcome, and date. Requires entity_id.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input getLaunchHistoryInput) (*mcp.CallToolResult, any, error) {
 		if input.EntityID == "" {
-			return textResult("Error: entity_id is required"), nil, nil
+			return errorResult("Error: entity_id is required"), nil, nil
 		}
 		params := map[string]string{"entity_id": input.EntityID}
 		if input.Vehicle != "" {
@@ -801,7 +867,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.GetLaunchHistory(ctx, params)
 		if err != nil {
-			return textResult("Error fetching launch history: " + err.Error()), nil, nil
+			return errorResult("Error fetching launch history: " + err.Error()), nil, nil
 		}
 		return textResult(formatLaunchHistory(data)), nil, nil
 	})
@@ -860,7 +926,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.SearchSpectrum(ctx, params)
 		if err != nil {
-			return textResult("Error searching spectrum: " + err.Error()), nil, nil
+			return errorResult("Error searching spectrum: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -878,7 +944,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.SearchSECFilings(ctx, params)
 		if err != nil {
-			return textResult("Error searching SEC filings: " + err.Error()), nil, nil
+			return errorResult("Error searching SEC filings: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -896,7 +962,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.SearchScreening(ctx, params)
 		if err != nil {
-			return textResult("Error searching screening lists: " + err.Error()), nil, nil
+			return errorResult("Error searching screening lists: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -917,7 +983,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.GetEntityDossier(ctx, input.ID, params)
 		if err != nil {
-			return textResult("Error fetching dossier: " + err.Error()), nil, nil
+			return errorResult("Error fetching dossier: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -936,7 +1002,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.SearchSatellites(ctx, params)
 		if err != nil {
-			return textResult("Error searching satellites: " + err.Error()), nil, nil
+			return errorResult("Error searching satellites: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -955,7 +1021,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.SearchGroundStations(ctx, params)
 		if err != nil {
-			return textResult("Error searching ground stations: " + err.Error()), nil, nil
+			return errorResult("Error searching ground stations: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -974,7 +1040,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.SearchFederalAwards(ctx, params)
 		if err != nil {
-			return textResult("Error searching federal awards: " + err.Error()), nil, nil
+			return errorResult("Error searching federal awards: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -986,7 +1052,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if input.Summary {
 			data, err := client.GetMilestonesSummary(ctx)
 			if err != nil {
-				return textResult("Error fetching milestone summary: " + err.Error()), nil, nil
+				return errorResult("Error fetching milestone summary: " + err.Error()), nil, nil
 			}
 			return textResult(formatJSON(data)), nil, nil
 		}
@@ -996,7 +1062,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		data, err := client.GetMilestones(ctx, params)
 		if err != nil {
-			return textResult("Error fetching milestones: " + err.Error()), nil, nil
+			return errorResult("Error fetching milestones: " + err.Error()), nil, nil
 		}
 		return textResult(formatJSON(data)), nil, nil
 	})
@@ -1799,6 +1865,14 @@ func textResult(text string) *mcp.CallToolResult {
 			&mcp.TextContent{Text: text},
 		},
 	}
+}
+
+// errorResult is a failed tool call: the same text as before, flagged so a
+// client can tell it from data instead of quoting "Error: …" as an answer (B-25).
+func errorResult(text string) *mcp.CallToolResult {
+	r := textResult(text)
+	r.IsError = true
+	return r
 }
 
 func deref(s *string) string {

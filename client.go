@@ -114,10 +114,19 @@ func (c *APIClient) do(req *http.Request) (json.RawMessage, error) {
 		if len(excerpt) > 200 {
 			excerpt = excerpt[:200]
 		}
-		return nil, fmt.Errorf("API returned %d: %s", resp.StatusCode, excerpt)
+		return nil, &APIError{Status: resp.StatusCode, Body: excerpt}
 	}
 	return json.RawMessage(body), nil
 }
+
+// APIError is a non-2xx answer from the REST API. Its text is unchanged from
+// the plain error it replaces; the type lets the tool wrapper log the class.
+type APIError struct {
+	Status int
+	Body   string
+}
+
+func (e *APIError) Error() string { return fmt.Sprintf("API returned %d: %s", e.Status, e.Body) }
 
 // SearchFilings calls GET /api/v1/filings with query parameters.
 func (c *APIClient) SearchFilings(ctx context.Context, params map[string]string) (json.RawMessage, error) {
@@ -501,12 +510,12 @@ func extractEntityNames(question string) string {
 	var found []string
 	for _, term := range knownTerms {
 		if strings.Contains(lower, term) {
-			found = append(found, term)
+			found = append(found, expandPhrase(question, term))
 		}
 	}
 	for _, term := range shortTerms {
 		if containsWord(lower, term) {
-			found = append(found, term)
+			found = append(found, expandPhrase(question, term))
 		}
 	}
 
@@ -549,4 +558,52 @@ func buildPath(base string, params map[string]string) string {
 		return base + "?" + encoded
 	}
 	return base
+}
+
+// expandPhrase returns the capitalised phrase around term in question: the
+// run of adjacent words starting with a capital letter or digit that contains
+// the term. "What has AST SpaceMobile filed" with term "ast" gives
+// "AST SpaceMobile", not "ast" (which the API matched to five zero-filing
+// lookalikes, B-21). A term that stands alone comes back unchanged.
+func expandPhrase(question, term string) string {
+	words := strings.Fields(question)
+	clean := func(w string) string { return strings.Trim(w, ".,;:!?\"'()[]{}*") }
+	capital := func(w string) bool {
+		w = clean(w)
+		if w == "" {
+			return false
+		}
+		r := rune(w[0])
+		return (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+	}
+	for i, w := range words {
+		cw := strings.ToLower(clean(w))
+		if cw != term && !strings.HasPrefix(cw, term+"-") {
+			continue
+		}
+		if !capital(w) {
+			return term
+		}
+		lo, hi := i, i
+		// Extend left over capitalised words, never onto the sentence's first
+		// word ("Recent SES filings" is SES, not "Recent SES").
+		for lo > 1 && capital(words[lo-1]) && !strings.ContainsAny(words[lo-1], ".,;:!?") {
+			lo--
+		}
+		for hi+1 < len(words) && capital(words[hi+1]) {
+			hi++
+			if strings.ContainsAny(words[hi], ".,;:!?") {
+				break
+			}
+		}
+		if lo == hi {
+			return term // single word: unchanged behaviour
+		}
+		var out []string
+		for _, x := range words[lo : hi+1] {
+			out = append(out, clean(x))
+		}
+		return strings.Join(out, " ")
+	}
+	return term
 }

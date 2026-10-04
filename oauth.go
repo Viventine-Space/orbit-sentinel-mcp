@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -127,12 +129,26 @@ func (v *oauthVerifier) middleware(next http.Handler) http.Handler {
 		tok := bearerToken(r.Header.Get("Authorization"))
 		switch {
 		case tok == "":
-			// unauthenticated: leave context untouched
+			// Unauthenticated: the handshake and listings stay open, but a
+			// call that needs data answers 401 with the PRM pointer so an
+			// OAuth-capable client starts discovery instead of receiving the
+			// API's 401 as tool text (B-10).
+			if method := gatedMethod(r); method != "" {
+				w.Header().Set("WWW-Authenticate", fmt.Sprintf(
+					`Bearer resource_metadata=%q, error="invalid_token", error_description="authentication required for %s"`,
+					oauthResourceMetadata, method))
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = fmt.Fprintf(w, `{"error":"unauthorized","method":%q,"resource_metadata":%q}`, method, oauthResourceMetadata)
+				slog.Info("anonymous call refused", "method", method, "remote", r.RemoteAddr)
+				return
+			}
 		case looksLikeJWT(tok):
 			if te := v.verify(r.Context(), tok); te != nil {
 				w.Header().Set("WWW-Authenticate", fmt.Sprintf(
 					`Bearer resource_metadata=%q, error=%q, error_description=%q`,
 					oauthResourceMetadata, te.code, te.desc))
+				slog.Warn("jwt rejected", "code", te.code, "detail", te.desc, "remote", r.RemoteAddr)
 				http.Error(w, te.code+": "+te.desc, te.status)
 				return
 			}
@@ -159,4 +175,41 @@ func oauthMetadataHandler() http.Handler {
 		ScopesSupported:        []string{"orbit:read"},
 		BearerMethodsSupported: []string{"header"},
 	})
+}
+
+// gatedMethods need a credential; initialize and the list methods do not.
+var gatedMethods = map[string]bool{"tools/call": true, "resources/read": true, "prompts/get": true}
+
+// gatedMethod peeks at a POST body's JSON-RPC method (object or batch) and
+// returns the first gated one, restoring the body for the handler.
+func gatedMethod(r *http.Request) string {
+	if r.Method != http.MethodPost || r.Body == nil {
+		return ""
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	_ = r.Body.Close()
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	if err != nil {
+		return ""
+	}
+	var one struct {
+		Method string `json:"method"`
+	}
+	if json.Unmarshal(body, &one) == nil && one.Method != "" {
+		if gatedMethods[one.Method] {
+			return one.Method
+		}
+		return ""
+	}
+	var many []struct {
+		Method string `json:"method"`
+	}
+	if json.Unmarshal(body, &many) == nil {
+		for _, m := range many {
+			if gatedMethods[m.Method] {
+				return m.Method
+			}
+		}
+	}
+	return ""
 }

@@ -101,21 +101,48 @@ func TestHTTPUnauthenticatedHandshakeAndGatedCalls(t *testing.T) {
 		t.Fatal("tools/list returned no tools")
 	}
 
-	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+	// An anonymous tools/call is refused at the HTTP layer with the RFC 6750
+	// challenge (B-10), so an OAuth-capable client discovers the flow instead
+	// of reading the REST API's 401 as tool text.
+	_, err = session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "search_filings",
 		Arguments: map[string]any{"count_only": true},
 	})
+	if err == nil {
+		t.Fatal("unauthenticated tools/call should be refused")
+	}
+	raw, _ := http.NewRequest(http.MethodPost, mcpSrv.URL+"/mcp",
+		strings.NewReader(`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"search_filings","arguments":{}}}`))
+	raw.Header.Set("Content-Type", "application/json")
+	raw.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := http.DefaultClient.Do(raw)
 	if err != nil {
-		t.Fatalf("tools/call transport error: %v", err)
+		t.Fatal(err)
 	}
-	var text string
-	for _, c := range res.Content {
-		if tc, ok := c.(*mcp.TextContent); ok {
-			text += tc.Text
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous tools/call status = %d, want 401", resp.StatusCode)
+	}
+	if h := resp.Header.Get("WWW-Authenticate"); !strings.Contains(h, "resource_metadata=") || !strings.Contains(h, prmPath) {
+		t.Fatalf("WWW-Authenticate must carry the PRM pointer, got %q", h)
+	}
+}
+
+func TestGatedMethodPeeksAndRestoresBody(t *testing.T) {
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{}}`
+	r, _ := http.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
+	if got := gatedMethod(r); got != "tools/call" {
+		t.Fatalf("gatedMethod = %q", got)
+	}
+	rest, _ := io.ReadAll(r.Body)
+	if string(rest) != body {
+		t.Fatalf("body not restored: %q", rest)
+	}
+	for _, open := range []string{"initialize", "tools/list", "resources/list", "prompts/list", "notifications/initialized"} {
+		r, _ := http.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"`+open+`"}`))
+		if got := gatedMethod(r); got != "" {
+			t.Errorf("%s should stay open, got %q", open, got)
 		}
-	}
-	if !strings.Contains(text, "401") && !strings.Contains(strings.ToLower(text), "error") {
-		t.Fatalf("unauthenticated tools/call should surface the REST 401, got %q", text)
 	}
 }
 

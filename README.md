@@ -56,7 +56,10 @@ Get a key / beta access at <https://console.viventine.com>.
 
 **Generic MCP clients** — any Streamable HTTP client works via OAuth 2.1
 (RFC 9728 protected-resource discovery) or an `Authorization: Bearer <key>`
-header. For a stdio-only client, bridge with
+header; any `User-Agent` is accepted. An unauthenticated `tools/call` answers
+HTTP 401 with a `WWW-Authenticate` header pointing at the protected-resource
+metadata, which is how OAuth-capable clients discover the flow; `initialize`
+and `tools/list` stay open. For a stdio-only client, bridge with
 `npx mcp-remote https://orbit-sentinel.viventine.com/mcp`.
 
 ### Claude Desktop (one-click)

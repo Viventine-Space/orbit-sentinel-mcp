@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"net"
 	"net/http"
 	"sync"
@@ -81,6 +82,7 @@ func rateLimitUnauth(next http.Handler) http.Handler {
 		if !getLimiter(clientIP(r)).Allow() {
 			w.Header().Set("Retry-After", "2")
 			w.Header().Set("Content-Type", "application/json")
+			slog.Info("anonymous rate limited", "remote", r.RemoteAddr)
 			w.WriteHeader(http.StatusTooManyRequests)
 			_, _ = w.Write([]byte(`{"error":"rate limit exceeded for unauthenticated requests"}`))
 			return
