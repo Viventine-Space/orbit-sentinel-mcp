@@ -56,7 +56,9 @@ Get a key / beta access at <https://console.viventine.com>.
 
 **Generic MCP clients** — any Streamable HTTP client works via OAuth 2.1
 (RFC 9728 protected-resource discovery) or an `Authorization: Bearer <key>`
-header; any `User-Agent` is accepted. An unauthenticated `tools/call` answers
+header. Requests sending Python's default `urllib` User-Agent (`Python-urllib/x.y`)
+are blocked at our edge with HTTP 403; set your own `User-Agent`, or use `requests`
+or `httpx`. An unauthenticated `tools/call` answers
 HTTP 401 with a `WWW-Authenticate` header pointing at the protected-resource
 metadata, which is how OAuth-capable clients discover the flow; `initialize`
 and `tools/list` stay open. For a stdio-only client, bridge with
