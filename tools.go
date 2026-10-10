@@ -21,7 +21,7 @@ type searchFilingsInput struct {
 	Query       string `json:"q,omitempty" jsonschema:"Search query for filing titles and summaries"`
 	Agency      string `json:"agency,omitempty" jsonschema:"Filter by source agency (FCC, ITU, UN_OOSA, FAA_AST, NOAA)"`
 	Type        string `json:"type,omitempty" jsonschema:"Filter by filing type (SATELLITE_LICENSE, EARTH_STATION_PERMIT, SPECTRUM_COORDINATION, etc.)"`
-	Status      string `json:"status,omitempty" jsonschema:"Filter by status (FILED, GRANTED, DENIED, UNDER_REVIEW, etc.)"`
+	Status      string `json:"status,omitempty" jsonschema:"Orbital status: active or decayed, each matching every catalog spelling. active means in Earth orbit per the catalog, not that the satellite is operational"`
 	Docket      string `json:"docket,omitempty" jsonschema:"Filter by docket number (exact match)"`
 	FiledAfter  string `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
 	FiledBefore string `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`
@@ -75,7 +75,7 @@ type searchSpectrumInput struct {
 	Direction    string `json:"direction,omitempty" jsonschema:"Filter by direction (e.g. uplink, downlink)"`
 	Polarization string `json:"polarization,omitempty" jsonschema:"Filter by polarization"`
 	Holder       string `json:"holder,omitempty" jsonschema:"Substring match on the allocation holder (applicant entity)"`
-	Limit        int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+	Limit        int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
 }
 
 type searchSECInput struct {
@@ -85,7 +85,7 @@ type searchSECInput struct {
 	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved entity UUID"`
 	FormType string `json:"form_type,omitempty" jsonschema:"SEC form type (e.g. 8-K, 10-Q, 10-K)"`
 	Since    string `json:"since,omitempty" jsonschema:"Only filings on/after this date (YYYY-MM-DD)"`
-	Limit    int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
 }
 
 type searchScreeningInput struct {
@@ -93,7 +93,7 @@ type searchScreeningInput struct {
 	Name          string `json:"name,omitempty" jsonschema:"Substring match on entity or matched name"`
 	List          string `json:"list,omitempty" jsonschema:"Substring match on screening list source (e.g. SDN, Entity List, ITAR)"`
 	MinSimilarity string `json:"min_similarity,omitempty" jsonschema:"Minimum match similarity 0-1 (e.g. 0.9)"`
-	Limit         int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+	Limit         int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
 }
 
 type getDossierInput struct {
@@ -104,15 +104,21 @@ type getDossierInput struct {
 }
 
 type searchSatellitesInput struct {
-	Name       string `json:"name,omitempty" jsonschema:"Substring match on satellite name"`
-	Operator   string `json:"operator,omitempty" jsonschema:"Substring match on operator name (e.g. SpaceX); note many rows use a country code (US, CIS, PRC) as the operator"`
-	Country    string `json:"country,omitempty" jsonschema:"Operator country code (exact match)"`
-	OrbitClass string `json:"orbit_class,omitempty" jsonschema:"Orbit class (e.g. LEO, MEO, GEO)"`
-	Status     string `json:"status,omitempty" jsonschema:"Orbital status (e.g. active, decayed)"`
-	COSPAR     string `json:"cospar,omitempty" jsonschema:"COSPAR / international designator (exact match)"`
-	NORAD      string `json:"norad,omitempty" jsonschema:"NORAD catalog id (integer)"`
-	EntityID   string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
-	Limit      int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+	Name           string `json:"name,omitempty" jsonschema:"Substring match on satellite name"`
+	Operator       string `json:"operator,omitempty" jsonschema:"Substring match on operator name (e.g. SpaceX); note many rows use a country code (US, CIS, PRC) as the operator"`
+	Country        string `json:"country,omitempty" jsonschema:"Operator country code (exact match)"`
+	OrbitClass     string `json:"orbit_class,omitempty" jsonschema:"Orbit class (e.g. LEO, MEO, GEO)"`
+	Status         string `json:"status,omitempty" jsonschema:"Orbital status: active (on orbit) or decayed; matches every catalog spelling of each"`
+	ObjectType     string `json:"object_type,omitempty" jsonschema:"Object type: payload, rocket_body, debris, or unknown. Use payload to count satellites rather than all cataloged objects. unknown also matches ~340 merge-era rows with no type; payload/rocket_body/debris exclude them"`
+	LaunchedAfter  string `json:"launched_after,omitempty" jsonschema:"Launch date on or after (YYYY-MM-DD)"`
+	LaunchedBefore string `json:"launched_before,omitempty" jsonschema:"Launch date on or before (YYYY-MM-DD)"`
+	DecayedAfter   string `json:"decayed_after,omitempty" jsonschema:"Decay/reentry date on or after (YYYY-MM-DD); only decayed objects have a decay date, so this also limits results to decayed objects"`
+	DecayedBefore  string `json:"decayed_before,omitempty" jsonschema:"Decay/reentry date on or before (YYYY-MM-DD)"`
+	CountOnly      bool   `json:"count_only,omitempty" jsonschema:"Return only total (the full match count), no rows. Use for any 'how many' question"`
+	COSPAR         string `json:"cospar,omitempty" jsonschema:"COSPAR / international designator (exact match)"`
+	NORAD          string `json:"norad,omitempty" jsonschema:"NORAD catalog id (integer)"`
+	EntityID       string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
+	Limit          int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). total always reports the full match count regardless of limit"`
 }
 
 type searchFederalAwardsInput struct {
@@ -123,7 +129,7 @@ type searchFederalAwardsInput struct {
 	EntityID  string `json:"entity_id,omitempty" jsonschema:"Filter by resolved recipient entity UUID"`
 	MinAmount string `json:"min_amount,omitempty" jsonschema:"Minimum award amount in USD (e.g. 1000000000 for $1B+)"`
 	Since     string `json:"since,omitempty" jsonschema:"Only awards starting on/after this date (YYYY-MM-DD)"`
-	Limit     int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
 }
 
 type searchGroundStationsInput struct {
@@ -134,7 +140,7 @@ type searchGroundStationsInput struct {
 	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator / licensee name"`
 	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID; requires source=extracted"`
 	Source   string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (authoritative FCC IBFS registry, reliable coordinates) or 'extracted' (entity-linked, LLM-extracted from filings, carries bands). Defaults to fcc for proximity, extracted for band/entity searches."`
-	Limit    int    `json:"limit,omitempty" jsonschema:"Max results (default 50, max 500)"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
 }
 
 type researchInput struct {
@@ -990,12 +996,18 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_satellites",
-		Description: "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, COSPAR, or NORAD id. Joined to the resolved operator entity. Use for 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet.",
+		Description: "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, object type, launch or decay date range, COSPAR, or NORAD id. Joined to the resolved operator entity. Every response includes `total`, the full number of matching objects (rows are capped at 500 and cannot be paged), so answer counting questions from `total` — set count_only=true to skip the rows. Combine filters in one call instead of splitting the search, e.g. a constellation's payloads launched in a given year: name=<constellation>, object_type=payload, launched_after=<YYYY>-01-01, launched_before=<YYYY>-12-31, count_only=true. Use for counting a fleet or a segment, 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSatellitesInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"name": input.Name, "operator": input.Operator, "country": input.Country,
 			"orbit_class": input.OrbitClass, "status": input.Status,
 			"cospar": input.COSPAR, "norad": input.NORAD, "entity_id": input.EntityID,
+			"object_type":    input.ObjectType,
+			"launched_after": input.LaunchedAfter, "launched_before": input.LaunchedBefore,
+			"decayed_after": input.DecayedAfter, "decayed_before": input.DecayedBefore,
+		}
+		if input.CountOnly {
+			params["count_only"] = "true"
 		}
 		if input.Limit > 0 {
 			params["limit"] = strconv.Itoa(input.Limit)

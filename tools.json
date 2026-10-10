@@ -69,7 +69,7 @@
   },
   {
     "name": "search_satellites",
-    "desc": "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, COSPAR, or NORAD id. Joined to the resolved operator entity. Use for 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet."
+    "desc": "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, object type, launch or decay date range, COSPAR, or NORAD id. Joined to the resolved operator entity. Every response includes `total`, the full number of matching objects (rows are capped at 500 and cannot be paged), so answer counting questions from `total` — set count_only=true to skip the rows. Combine filters in one call instead of splitting the search, e.g. a constellation's payloads launched in a given year: name=\u003cconstellation\u003e, object_type=payload, launched_after=\u003cYYYY\u003e-01-01, launched_before=\u003cYYYY\u003e-12-31, count_only=true. Use for counting a fleet or a segment, 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet."
   },
   {
     "name": "search_ground_stations",
