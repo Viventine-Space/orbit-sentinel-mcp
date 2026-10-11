@@ -1,0 +1,198 @@
+{
+  "/api/v1/analytics/filing-distribution": [
+    "agency",
+    "entity_type",
+    "filed_after",
+    "filed_before"
+  ],
+  "/api/v1/analytics/top-filers": [
+    "agency",
+    "entity_type",
+    "filed_after",
+    "filed_before",
+    "limit"
+  ],
+  "/api/v1/analytics/trends": [
+    "agency",
+    "entity_id",
+    "entity_type",
+    "period_months",
+    "periods",
+    "top_movers"
+  ],
+  "/api/v1/bonds": [
+    "entity_id",
+    "operator",
+    "orbit_type",
+    "page",
+    "per_page"
+  ],
+  "/api/v1/bonds/events": [
+    "entity_id",
+    "event_type",
+    "page",
+    "per_page"
+  ],
+  "/api/v1/bonds/summary": [],
+  "/api/v1/entities": [
+    "country",
+    "limit",
+    "page",
+    "per_page",
+    "q",
+    "type"
+  ],
+  "/api/v1/entities/{id}": [
+    "filed_after",
+    "filed_before"
+  ],
+  "/api/v1/entities/{id}/dossier": [
+    "family_confidence",
+    "include_family",
+    "include_subsidiaries"
+  ],
+  "/api/v1/entities/{id}/events": [
+    "limit",
+    "page",
+    "per_page"
+  ],
+  "/api/v1/entities/{id}/filings": [
+    "limit",
+    "page",
+    "per_page"
+  ],
+  "/api/v1/entities/{id}/related": [
+    "limit",
+    "page",
+    "per_page"
+  ],
+  "/api/v1/export/filings": [
+    "agency",
+    "docket",
+    "entity_id",
+    "filed_after",
+    "filed_before",
+    "has_mpl",
+    "limit",
+    "min_liability_usd",
+    "q",
+    "source_id",
+    "source_id_prefix",
+    "status",
+    "type"
+  ],
+  "/api/v1/federal-awards": [
+    "agency",
+    "award_type",
+    "entity_id",
+    "limit",
+    "min_amount",
+    "naics",
+    "recipient",
+    "since"
+  ],
+  "/api/v1/filings": [
+    "agency",
+    "count_only",
+    "docket",
+    "entity_id",
+    "filed_after",
+    "filed_before",
+    "has_mpl",
+    "limit",
+    "min_liability_usd",
+    "page",
+    "per_page",
+    "q",
+    "source_id",
+    "source_id_prefix",
+    "status",
+    "type"
+  ],
+  "/api/v1/filings/{id}": [],
+  "/api/v1/filings/{id}/provenance": [],
+  "/api/v1/financial-responsibility": [
+    "entity_id",
+    "license_type",
+    "operator",
+    "page",
+    "per_page"
+  ],
+  "/api/v1/ground-stations": [
+    "band",
+    "entity_id",
+    "limit",
+    "name",
+    "near",
+    "operator",
+    "radius_km",
+    "source"
+  ],
+  "/api/v1/launches": [
+    "entity_id",
+    "limit",
+    "vehicle"
+  ],
+  "/api/v1/milestones": [
+    "call_sign",
+    "classification",
+    "is_ngso",
+    "limit"
+  ],
+  "/api/v1/milestones/summary": [],
+  "/api/v1/positions/search": [
+    "argument_type",
+    "docket",
+    "filer",
+    "limit",
+    "position",
+    "q",
+    "stance",
+    "target_party"
+  ],
+  "/api/v1/satellites": [
+    "cospar",
+    "count_only",
+    "country",
+    "decayed_after",
+    "decayed_before",
+    "entity_id",
+    "launched_after",
+    "launched_before",
+    "limit",
+    "name",
+    "norad",
+    "object_type",
+    "operator",
+    "orbit_class",
+    "status"
+  ],
+  "/api/v1/screening": [
+    "entity_id",
+    "include_short",
+    "limit",
+    "list",
+    "min_similarity",
+    "name"
+  ],
+  "/api/v1/sec/filings": [
+    "cik",
+    "company",
+    "entity_id",
+    "form_type",
+    "full_excerpt",
+    "limit",
+    "since",
+    "ticker"
+  ],
+  "/api/v1/spectrum": [
+    "agency",
+    "direction",
+    "freq_high_mhz",
+    "freq_low_mhz",
+    "holder",
+    "include_partial",
+    "limit",
+    "polarization"
+  ]
+}
