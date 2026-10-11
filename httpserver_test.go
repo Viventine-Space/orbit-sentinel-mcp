@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -270,4 +271,12 @@ func TestHTTPConcurrentKeysIsolated(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+// The OCI load balancer reuses an idle backend connection for up to 300 s and
+// requires backends to keep it open longer than 310 s (BUGLIST day-3 #25).
+func TestHTTPServerOutlastsLBKeepAlive(t *testing.T) {
+	if got := newHTTPServer(":0").IdleTimeout; got <= 310*time.Second {
+		t.Fatalf("IdleTimeout = %v, want > 310s", got)
+	}
 }

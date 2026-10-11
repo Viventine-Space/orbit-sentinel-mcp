@@ -12,15 +12,22 @@ import (
 // request must carry a Bearer token, which is forwarded per-request to the REST
 // API; the MCP_API_KEY env var is not used as a fallback in this mode.
 func runHTTP(addr string) error {
-	srv := &http.Server{
+	return newHTTPServer(addr).ListenAndServe()
+}
+
+func newHTTPServer(addr string) *http.Server {
+	return &http.Server{
 		Addr:              addr,
 		Handler:           newHTTPHandler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      120 * time.Second,
-		IdleTimeout:       120 * time.Second,
+		// OCI's load balancer reuses an idle backend connection for up to
+		// 300 s and requires backends to keep it open for more than 310 s.
+		// At 120 s it sent requests down connections we had just closed and
+		// answered 502 itself (BUGLIST day-3 #25).
+		IdleTimeout: 330 * time.Second,
 	}
-	return srv.ListenAndServe()
 }
 
 func newHTTPHandler() http.Handler {
