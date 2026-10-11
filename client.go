@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -68,22 +71,26 @@ func apiKeyFromContext(ctx context.Context) string {
 }
 
 func (c *APIClient) doGet(ctx context.Context, path string) (json.RawMessage, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
-	}
-	c.applyHeaders(req, path, ctx)
-	return c.do(req)
+	return c.do(ctx, func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
+		if err != nil {
+			return nil, err
+		}
+		c.applyHeaders(req, path, ctx)
+		return req, nil
+	})
 }
 
 func (c *APIClient) doPost(ctx context.Context, path string, payload []byte) (json.RawMessage, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(payload))
-	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	c.applyHeaders(req, path, ctx)
-	return c.do(req)
+	return c.do(ctx, func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(payload))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		c.applyHeaders(req, path, ctx)
+		return req, nil
+	})
 }
 
 func (c *APIClient) applyHeaders(req *http.Request, path string, ctx context.Context) {
@@ -99,7 +106,51 @@ func (c *APIClient) applyHeaders(req *http.Request, path string, ctx context.Con
 	}
 }
 
-func (c *APIClient) do(req *http.Request) (json.RawMessage, error) {
+// A 429 whose code says "slow down" is retried: rate_limited (the key's burst
+// is spent) and concurrency_exceeded (too many in flight). A model's batch of
+// 20 get_filing_detail calls 15 ms apart used to get 15 of them rejected, and
+// the model then spent turns re-issuing them (BUGLIST day-3 #19). Budget and
+// auth rejections are not retried; waiting does not fix them.
+const (
+	maxRetries   = 2
+	maxRetryWait = 2 * time.Second
+	retryJitter  = 500 * time.Millisecond
+)
+
+// sleepCtx waits d or until ctx ends; a variable so tests can record waits.
+var sleepCtx = func(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+// do sends the request that build makes, rebuilding it for each retry so a
+// POST body is sent whole every time.
+func (c *APIClient) do(ctx context.Context, build func() (*http.Request, error)) (json.RawMessage, error) {
+	for attempt := 0; ; attempt++ {
+		req, err := build()
+		if err != nil {
+			return nil, fmt.Errorf("build request: %w", err)
+		}
+		body, err := c.send(req)
+		var ae *APIError
+		if err == nil || attempt == maxRetries || !errors.As(err, &ae) || !ae.retryable() {
+			return body, err
+		}
+		wait := retryWait(ae.retryAfter)
+		slog.Info("api retry", "path", req.URL.Path, "code", ae.code, "attempt", attempt+1, "wait_ms", wait.Milliseconds())
+		if sleepCtx(ctx, wait) != nil {
+			return nil, err
+		}
+	}
+}
+
+func (c *APIClient) send(req *http.Request) (json.RawMessage, error) {
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request %s %s failed: %w", req.Method, req.URL.Path, err)
@@ -110,23 +161,45 @@ func (c *APIClient) do(req *http.Request) (json.RawMessage, error) {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var e struct {
+			Code string `json:"code"`
+		}
+		_ = json.Unmarshal(body, &e)
 		excerpt := string(body)
 		if len(excerpt) > 200 {
 			excerpt = excerpt[:200]
 		}
-		return nil, &APIError{Status: resp.StatusCode, Body: excerpt}
+		return nil, &APIError{Status: resp.StatusCode, Body: excerpt, code: e.Code, retryAfter: resp.Header.Get("Retry-After")}
 	}
 	return json.RawMessage(body), nil
+}
+
+// retryWait is the Retry-After seconds (1 when absent or not a number), capped
+// at maxRetryWait, plus up to retryJitter so a rejected batch does not come
+// back all at once into a bucket that again holds only a few tokens.
+func retryWait(retryAfter string) time.Duration {
+	wait := time.Second
+	if n, err := strconv.Atoi(strings.TrimSpace(retryAfter)); err == nil && n >= 0 {
+		wait = time.Duration(n) * time.Second
+	}
+	wait = min(wait, maxRetryWait)
+	return wait + rand.N(retryJitter)
 }
 
 // APIError is a non-2xx answer from the REST API. Its text is unchanged from
 // the plain error it replaces; the type lets the tool wrapper log the class.
 type APIError struct {
-	Status int
-	Body   string
+	Status     int
+	Body       string
+	code       string // the JSON body's code, if any
+	retryAfter string // the Retry-After header, if any
 }
 
 func (e *APIError) Error() string { return fmt.Sprintf("API returned %d: %s", e.Status, e.Body) }
+
+func (e *APIError) retryable() bool {
+	return e.Status == http.StatusTooManyRequests && (e.code == "rate_limited" || e.code == "concurrency_exceeded")
+}
 
 // SearchFilings calls GET /api/v1/filings with query parameters.
 func (c *APIClient) SearchFilings(ctx context.Context, params map[string]string) (json.RawMessage, error) {
