@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -75,7 +76,7 @@ type searchSpectrumInput struct {
 	Direction    string `json:"direction,omitempty" jsonschema:"Filter by direction (e.g. uplink, downlink)"`
 	Polarization string `json:"polarization,omitempty" jsonschema:"Filter by polarization"`
 	Holder       string `json:"holder,omitempty" jsonschema:"Substring match on the allocation holder (applicant entity)"`
-	Limit        int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
+	Limit        int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type searchSECInput struct {
@@ -85,7 +86,7 @@ type searchSECInput struct {
 	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved entity UUID"`
 	FormType string `json:"form_type,omitempty" jsonschema:"SEC form type (e.g. 8-K, 10-Q, 10-K)"`
 	Since    string `json:"since,omitempty" jsonschema:"Only filings on/after this date (YYYY-MM-DD)"`
-	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 100). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type searchScreeningInput struct {
@@ -93,7 +94,7 @@ type searchScreeningInput struct {
 	Name          string `json:"name,omitempty" jsonschema:"Substring match on entity or matched name"`
 	List          string `json:"list,omitempty" jsonschema:"Substring match on screening list source (e.g. SDN, Entity List, ITAR)"`
 	MinSimilarity string `json:"min_similarity,omitempty" jsonschema:"Minimum match similarity 0-1 (e.g. 0.9)"`
-	Limit         int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
+	Limit         int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type getDossierInput struct {
@@ -118,7 +119,7 @@ type searchSatellitesInput struct {
 	COSPAR         string `json:"cospar,omitempty" jsonschema:"COSPAR / international designator (exact match)"`
 	NORAD          string `json:"norad,omitempty" jsonschema:"NORAD catalog id (integer)"`
 	EntityID       string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
-	Limit          int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). total always reports the full match count regardless of limit"`
+	Limit          int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). total always reports the full match count regardless of limit. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type searchFederalAwardsInput struct {
@@ -129,7 +130,7 @@ type searchFederalAwardsInput struct {
 	EntityID  string `json:"entity_id,omitempty" jsonschema:"Filter by resolved recipient entity UUID"`
 	MinAmount string `json:"min_amount,omitempty" jsonschema:"Minimum award amount in USD (e.g. 1000000000 for $1B+)"`
 	Since     string `json:"since,omitempty" jsonschema:"Only awards starting on/after this date (YYYY-MM-DD)"`
-	Limit     int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
+	Limit     int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type searchGroundStationsInput struct {
@@ -140,7 +141,7 @@ type searchGroundStationsInput struct {
 	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator / licensee name"`
 	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID; requires source=extracted"`
 	Source   string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (authoritative FCC IBFS registry, reliable coordinates) or 'extracted' (entity-linked, LLM-extracted from filings, carries bands). Defaults to fcc for proximity, extracted for band/entity searches."`
-	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total"`
+	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type researchInput struct {
@@ -595,9 +596,9 @@ func wrapAddTool[In, Out any](s *mcp.Server, tool *mcp.Tool, handler func(ctx co
 }
 
 // logToolCall writes one line per tool call: tool, duration, outcome class,
-// how the caller authenticated and the key prefix the API also logs. Never the
-// arguments, the token or the result (B-08: the container had logged nothing
-// since it started).
+// how the caller authenticated, the key prefix the API also logs and the size
+// of the text returned. Never the arguments, the token or the result (B-08:
+// the container had logged nothing since it started).
 func logToolCall(ctx context.Context, tool string, start time.Time, res *mcp.CallToolResult, err error) {
 	outcome := "ok"
 	switch {
@@ -607,7 +608,15 @@ func logToolCall(ctx context.Context, tool string, start time.Time, res *mcp.Cal
 		outcome = classifyErrorText(firstText(res))
 	}
 	kind, prefix := callerKind(apiKeyFromContext(ctx))
-	slog.Info("tool call", "tool", tool, "ms", time.Since(start).Milliseconds(), "outcome", outcome, "auth", kind, "key_prefix", prefix)
+	size := 0
+	if res != nil {
+		for _, c := range res.Content {
+			if t, ok := c.(*mcp.TextContent); ok {
+				size += len(t.Text)
+			}
+		}
+	}
+	slog.Info("tool call", "tool", tool, "ms", time.Since(start).Milliseconds(), "outcome", outcome, "auth", kind, "key_prefix", prefix, "bytes", size)
 }
 
 func firstText(res *mcp.CallToolResult) string {
@@ -934,7 +943,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error searching spectrum: " + err.Error()), nil, nil
 		}
-		return textResult(formatJSON(data)), nil, nil
+		return textResult(formatRows(data, spectrumTable)), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -952,7 +961,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error searching SEC filings: " + err.Error()), nil, nil
 		}
-		return textResult(formatJSON(data)), nil, nil
+		return textResult(formatRows(data, secTable)), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -970,7 +979,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error searching screening lists: " + err.Error()), nil, nil
 		}
-		return textResult(formatJSON(data)), nil, nil
+		return textResult(formatRows(data, nil)), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -1016,7 +1025,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error searching satellites: " + err.Error()), nil, nil
 		}
-		return textResult(formatJSON(data)), nil, nil
+		return textResult(formatRows(data, satelliteTable)), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -1035,7 +1044,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error searching ground stations: " + err.Error()), nil, nil
 		}
-		return textResult(formatJSON(data)), nil, nil
+		return textResult(formatRows(data, groundStationTable)), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -1054,7 +1063,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error searching federal awards: " + err.Error()), nil, nil
 		}
-		return textResult(formatJSON(data)), nil, nil
+		return textResult(formatRows(data, nil)), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -1076,7 +1085,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error fetching milestones: " + err.Error()), nil, nil
 		}
-		return textResult(formatJSON(data)), nil, nil
+		return textResult(formatRows(data, nil)), nil, nil
 	})
 }
 
@@ -1091,6 +1100,218 @@ func formatJSON(data json.RawMessage) string {
 		return string(data)
 	}
 	return string(b)
+}
+
+// maxToolOutputBytes caps the text one tool call hands the model. List tools
+// used to pass the API's JSON through whole: up to 708 KB, with total
+// serialized after the rows, so a client that cut the text (spacebench keeps
+// 20 KB) lost the count it was told to answer from (BUGLIST day-3 #21).
+const maxToolOutputBytes = 40 << 10
+
+// rowTable renders list rows as a compact Markdown table, one line per row.
+type rowTable struct {
+	header string // header and separator lines
+	row    func(i int, raw json.RawMessage) string
+}
+
+// formatRows renders a list response ({results|milestones|groups, total, ...}):
+// the total first, any other top-level fields, then one line per row (t's
+// table lines for results, compact JSON otherwise) until the text nears
+// maxToolOutputBytes, then how many rows were left out. A response without a
+// row list is pretty-printed as before.
+func formatRows(data json.RawMessage, t *rowTable) string {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		return formatJSON(data)
+	}
+	key := ""
+	var rows []json.RawMessage
+	for _, k := range []string{"results", "milestones", "groups"} {
+		if raw, ok := top[k]; ok && json.Unmarshal(raw, &rows) == nil {
+			key = k
+			break
+		}
+	}
+	if key == "" {
+		return formatJSON(data)
+	}
+	if key != "results" {
+		t = nil
+	}
+
+	var extra strings.Builder
+	for _, k := range slices.Sorted(maps.Keys(top)) {
+		if k == key || k == "total" {
+			continue
+		}
+		fmt.Fprintf(&extra, "%s: %s\n", k, truncate(compactJSON(top[k]), 300))
+	}
+
+	var body strings.Builder
+	if t != nil && len(rows) > 0 {
+		body.WriteString(t.header)
+	}
+	budget := maxToolOutputBytes - extra.Len() - 512 // room for the first and last lines
+	shown := 0
+	for i, raw := range rows {
+		var line string
+		if t != nil {
+			line = t.row(i, raw)
+		} else {
+			line = compactJSON(raw)
+		}
+		if body.Len()+len(line)+1 > budget {
+			break
+		}
+		body.WriteString(line)
+		body.WriteByte('\n')
+		shown++
+	}
+
+	var b strings.Builder
+	if total, ok := top["total"]; ok {
+		fmt.Fprintf(&b, "Total matches: %s.", compactJSON(total))
+	} else {
+		fmt.Fprintf(&b, "Rows returned: %d.", len(rows))
+	}
+	switch {
+	case len(rows) == 0:
+		b.WriteString(" No rows returned.\n")
+	case shown < len(rows):
+		fmt.Fprintf(&b, " Showing %d of %d rows returned.\n", shown, len(rows))
+	default:
+		fmt.Fprintf(&b, " Showing %d rows.\n", shown)
+	}
+	b.WriteString(extra.String())
+	if len(rows) > 0 {
+		b.WriteString("\n")
+		b.WriteString(body.String())
+	}
+	if shown < len(rows) {
+		fmt.Fprintf(&b, "\n_%d rows omitted to fit the output limit; narrow the query. The total above is exact._\n", len(rows)-shown)
+	}
+	return b.String()
+}
+
+func compactJSON(raw json.RawMessage) string {
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, raw); err != nil {
+		return string(raw)
+	}
+	return buf.String()
+}
+
+var secTable = &rowTable{
+	header: "| Filed | Form | Company | Ticker | CIK | Items | Accession | URL | Entity | Excerpt (first 10 rows) |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|\n",
+	row: func(i int, raw json.RawMessage) string {
+		var r struct {
+			FormType        *string  `json:"form_type"`
+			FiledDate       *string  `json:"filed_date"`
+			AccessionNumber *string  `json:"accession_number"`
+			FilingURL       *string  `json:"filing_url"`
+			Items           []string `json:"items"`
+			TextExcerpt     string   `json:"text_excerpt"`
+			Company         *string  `json:"company"`
+			Ticker          *string  `json:"ticker"`
+			CIK             *string  `json:"cik"`
+			EntityID        *string  `json:"entity_id"`
+		}
+		_ = json.Unmarshal(raw, &r)
+		items := strings.Join(r.Items, ",")
+		if items == "" {
+			items = "-"
+		}
+		excerpt := ""
+		if i < 10 {
+			excerpt = truncate(strings.Join(strings.Fields(r.TextExcerpt), " "), 200)
+		}
+		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+			deref(r.FiledDate), deref(r.FormType), deref(r.Company), deref(r.Ticker), deref(r.CIK),
+			mdCell(items), deref(r.AccessionNumber), deref(r.FilingURL), deref(r.EntityID), excerpt)
+	},
+}
+
+var satelliteTable = &rowTable{
+	header: "| Name | NORAD | COSPAR | Operator | Country | Orbit | Object type | Status | Launched | Entity |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|\n",
+	row: func(_ int, raw json.RawMessage) string {
+		var r struct {
+			Name            *string `json:"name"`
+			NoradCatID      *int    `json:"norad_cat_id"`
+			CosparID        *string `json:"cospar_id"`
+			OperatorName    *string `json:"operator_name"`
+			OperatorCountry *string `json:"operator_country"`
+			OrbitClass      *string `json:"orbit_class"`
+			ObjectType      *string `json:"object_type"`
+			OrbitalStatus   *string `json:"orbital_status"`
+			LaunchDate      *string `json:"launch_date"`
+			EntityID        *string `json:"entity_id"`
+		}
+		_ = json.Unmarshal(raw, &r)
+		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+			deref(r.Name), derefInt(r.NoradCatID), deref(r.CosparID), deref(r.OperatorName), deref(r.OperatorCountry),
+			deref(r.OrbitClass), deref(r.ObjectType), deref(r.OrbitalStatus), deref(r.LaunchDate), deref(r.EntityID))
+	},
+}
+
+var spectrumTable = &rowTable{
+	header: "| Low MHz | High MHz | Band | Direction | Polarization | EIRP dBW | Agency | Source ID | Type | Filed | Applicant | Filing ID |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|---|\n",
+	row: func(_ int, raw json.RawMessage) string {
+		var r struct {
+			BandDesignation *string  `json:"band_designation"`
+			FreqLowMHz      *float64 `json:"frequency_low_mhz"`
+			FreqHighMHz     *float64 `json:"frequency_high_mhz"`
+			Direction       *string  `json:"direction"`
+			Polarization    *string  `json:"polarization"`
+			EIRPdBW         *float64 `json:"eirp_dbw"`
+			FilingID        *string  `json:"filing_id"`
+			SourceAgency    *string  `json:"source_agency"`
+			SourceID        *string  `json:"source_id"`
+			FilingType      *string  `json:"filing_type"`
+			FiledDate       *string  `json:"filed_date"`
+			Applicant       *string  `json:"applicant"`
+		}
+		_ = json.Unmarshal(raw, &r)
+		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+			derefFloat(r.FreqLowMHz, -1), derefFloat(r.FreqHighMHz, -1), deref(r.BandDesignation), deref(r.Direction),
+			deref(r.Polarization), derefFloat(r.EIRPdBW, 1), deref(r.SourceAgency), deref(r.SourceID),
+			deref(r.FilingType), deref(r.FiledDate), deref(r.Applicant), deref(r.FilingID))
+	},
+}
+
+var groundStationTable = &rowTable{
+	header: "| Source | Station | Operator | Location | Lat | Lon | Distance km | Bands | Antenna m | Entity |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|\n",
+	row: func(_ int, raw json.RawMessage) string {
+		var r struct {
+			Source           *string  `json:"source"`
+			StationName      *string  `json:"station_name"`
+			Operator         *string  `json:"operator"`
+			EntityID         *string  `json:"entity_id"`
+			City             string   `json:"city"`
+			State            string   `json:"state"`
+			Latitude         *float64 `json:"latitude"`
+			Longitude        *float64 `json:"longitude"`
+			AntennaDiameterM *float64 `json:"antenna_diameter_m"`
+			FrequencyBands   []string `json:"frequency_bands"`
+			DistanceKM       *float64 `json:"distance_km"`
+		}
+		_ = json.Unmarshal(raw, &r)
+		loc := strings.Trim(r.City+", "+r.State, ", ")
+		if loc == "" {
+			loc = "-"
+		}
+		bands := strings.Join(r.FrequencyBands, ",")
+		if bands == "" {
+			bands = "-"
+		}
+		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+			deref(r.Source), deref(r.StationName), deref(r.Operator), mdCell(loc),
+			derefFloat(r.Latitude, 4), derefFloat(r.Longitude, 4), derefFloat(r.DistanceKM, 1),
+			mdCell(bands), derefFloat(r.AntennaDiameterM, 1), deref(r.EntityID))
+	},
 }
 
 // --- Formatting functions ---
@@ -1871,7 +2092,13 @@ func formatTrends(data json.RawMessage) string {
 
 // --- Helpers ---
 
+// textResult is a tool's text, cut to maxToolOutputBytes whatever formatter
+// made it.
 func textResult(text string) *mcp.CallToolResult {
+	if len(text) > maxToolOutputBytes {
+		const note = "\n\n_Output truncated at the size limit; narrow the query._\n"
+		text = text[:runeCut(text, maxToolOutputBytes-len(note))] + note
+	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: text},
