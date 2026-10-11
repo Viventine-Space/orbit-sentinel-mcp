@@ -5,11 +5,11 @@
   },
   {
     "name": "search_filings",
-    "desc": "Search space regulatory filings by keyword, agency, type, status, and date range. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies."
+    "desc": "Search space regulatory filings by keyword, agency, type, status, date range, agency file number (exact or prefix such as SES-LIC) or applicant entity. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies."
   },
   {
     "name": "get_filing_detail",
-    "desc": "Get full details of a specific regulatory filing including spectrum data, orbital parameters, ground stations, signals, related filings, attachments, and (for policy filings) executive summary, overall stance, and structured arguments."
+    "desc": "Get full details of a specific regulatory filing, by UUID or agency file number, including spectrum data, orbital parameters, ground stations, signals, related filings, attachments, and (for policy filings) executive summary, overall stance, and structured arguments."
   },
   {
     "name": "search_positions",

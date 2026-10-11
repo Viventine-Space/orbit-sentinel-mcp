@@ -19,26 +19,29 @@ import (
 // --- Tool input types ---
 
 type searchFilingsInput struct {
-	Query       string `json:"q,omitempty" jsonschema:"Search query for filing titles and summaries"`
-	Agency      string `json:"agency,omitempty" jsonschema:"Filter by source agency (FCC, ITU, UN_OOSA, FAA_AST, NOAA)"`
-	Type        string `json:"type,omitempty" jsonschema:"Filter by filing type (SATELLITE_LICENSE, EARTH_STATION_PERMIT, SPECTRUM_COORDINATION, etc.)"`
-	Status      string `json:"status,omitempty" jsonschema:"Orbital status: active or decayed, each matching every catalog spelling. active means in Earth orbit per the catalog, not that the satellite is operational"`
-	Docket      string `json:"docket,omitempty" jsonschema:"Filter by docket number (exact match)"`
-	FiledAfter  string `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
-	FiledBefore string `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`
-	Page        int    `json:"page,omitempty" jsonschema:"Page number (default 1)"`
-	PerPage     int    `json:"per_page,omitempty" jsonschema:"Results per page (default 10, max 100)"`
-	CountOnly   bool   `json:"count_only,omitempty" jsonschema:"If true, return only {total: N} without fetching rows"`
+	Query          string `json:"q,omitempty" jsonschema:"Search query for filing titles and summaries"`
+	Agency         string `json:"agency,omitempty" jsonschema:"Filter by source agency, one of: ACMA_AU, CNES_FR, FAA_AST, FCC, ITU, NOAA, NTIA, OFCOM_UK, OTHER, SEC, STATE_AK, STATE_FL, STATE_TX, STATE_VA, UN_OOSA, USPTO"`
+	Type           string `json:"type,omitempty" jsonschema:"Filter by filing type, one of: ADVANCE_PUBLICATION, COMMENT, EARTH_STATION_PERMIT, ENVIRONMENTAL_ASSESSMENT, EXPERIMENTAL_LICENSE, EX_PARTE, LAUNCH_LICENSE, MODIFICATION, OPPOSITION, ORBITAL_DEBRIS_PLAN, OTHER, PETITION, REENTRY_LICENSE, REGISTRATION, REMOTE_SENSING_LICENSE, RENEWAL, SATELLITE_LICENSE, SPECIAL_TEMPORARY_AUTH, SPECTRUM_COORDINATION, TRANSFER_OF_CONTROL. For FCC application types such as SES-LIC use source_id_prefix"`
+	Status         string `json:"status,omitempty" jsonschema:"Filing (application) status, one of: ACCEPTED, CANCELLED, COMMENT_PERIOD, DENIED, DISMISSED, EXPIRED, FILED, GRANTED, PUBLIC_NOTICE, UNDER_REVIEW, UNKNOWN, WITHDRAWN"`
+	Docket         string `json:"docket,omitempty" jsonschema:"Filter by docket number (exact match)"`
+	SourceID       string `json:"source_id,omitempty" jsonschema:"Agency file number, exact match (e.g. SAT-LOA-20200526-00055, LLO-22-126)"`
+	SourceIDPrefix string `json:"source_id_prefix,omitempty" jsonschema:"File-number prefix, e.g. SES-LIC, SAT-LOA, SES-T/C or LLO: filters by FCC application type"`
+	EntityID       string `json:"entity_id,omitempty" jsonschema:"Applicant entity UUID (from search_entities): filings this entity filed"`
+	FiledAfter     string `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
+	FiledBefore    string `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`
+	Page           int    `json:"page,omitempty" jsonschema:"Page number (default 1)"`
+	PerPage        int    `json:"per_page,omitempty" jsonschema:"Results per page (default 10, max 100)"`
+	CountOnly      bool   `json:"count_only,omitempty" jsonschema:"If true, return only {total: N} without fetching rows"`
 }
 
 type getFilingInput struct {
-	ID string `json:"id" jsonschema:"Filing UUID"`
+	ID string `json:"id" jsonschema:"Filing UUID or agency file number (e.g. SES-STA-20250604-00870, LLO-22-126). A file number shared by several filings returns an error listing their UUIDs"`
 }
 
 type searchSemanticInput struct {
 	Query         string  `json:"query" jsonschema:"Natural language search query"`
 	Limit         int     `json:"limit,omitempty" jsonschema:"Max results (default 10, max 50)"`
-	Agency        string  `json:"agency,omitempty" jsonschema:"Filter by source agency"`
+	Agency        string  `json:"agency,omitempty" jsonschema:"Filter by source agency, one of: ACMA_AU, CNES_FR, FAA_AST, FCC, ITU, NOAA, NTIA, OFCOM_UK, OTHER, SEC, STATE_AK, STATE_FL, STATE_TX, STATE_VA, UN_OOSA, USPTO"`
 	MinSimilarity float64 `json:"min_similarity,omitempty" jsonschema:"Minimum cosine similarity threshold (default 0.5)"`
 	FiledAfter    string  `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
 	FiledBefore   string  `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`
@@ -681,12 +684,13 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_filings",
-		Description: "Search space regulatory filings by keyword, agency, type, status, and date range. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies.",
+		Description: "Search space regulatory filings by keyword, agency, type, status, date range, agency file number (exact or prefix such as SES-LIC) or applicant entity. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchFilingsInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"q": input.Query, "agency": input.Agency, "type": input.Type,
 			"status": input.Status, "docket": input.Docket,
 			"filed_after": input.FiledAfter, "filed_before": input.FiledBefore,
+			"source_id": input.SourceID, "source_id_prefix": input.SourceIDPrefix, "entity_id": input.EntityID,
 		}
 		if input.CountOnly {
 			params["count_only"] = "true"
@@ -717,7 +721,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "get_filing_detail",
-		Description: "Get full details of a specific regulatory filing including spectrum data, orbital parameters, ground stations, signals, related filings, attachments, and (for policy filings) executive summary, overall stance, and structured arguments.",
+		Description: "Get full details of a specific regulatory filing, by UUID or agency file number, including spectrum data, orbital parameters, ground stations, signals, related filings, attachments, and (for policy filings) executive summary, overall stance, and structured arguments.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input getFilingInput) (*mcp.CallToolResult, any, error) {
 		data, err := client.GetFiling(ctx, input.ID)
 		if err != nil {
