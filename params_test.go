@@ -139,3 +139,47 @@ func TestToolQueryKeysAllowedByAPI(t *testing.T) {
 		}
 	}
 }
+
+// Every key the API accepts on the SSAL and ground-station routes can be sent,
+// and a false boolean filter is sent as false rather than dropped (#44).
+func TestToolsSendNewFilters(t *testing.T) {
+	routes := loadRouteParams(t)
+	var mu sync.Mutex
+	got := map[string]map[string]string{}
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got[r.URL.Path] = map[string]string{}
+		for k := range r.URL.Query() {
+			got[r.URL.Path][k] = r.URL.Query().Get(k)
+		}
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"results":[],"total":0}`))
+	})
+	cs := newTestSession(t, api)
+
+	callText(t, cs, "search_space_station_authorizations", map[string]any{
+		"operator": "telesat", "system": "lightspeed", "licensing_admin": "Canada", "call_sign": "S1234",
+		"entity_id": "e", "is_ngso": true, "foreign": true, "granted": false, "count_only": true, "limit": 10,
+	})
+	ssal := got["/api/v1/space-station-authorizations"]
+	for _, k := range routes["/api/v1/space-station-authorizations"] {
+		if _, ok := ssal[k]; !ok {
+			t.Errorf("search_space_station_authorizations cannot send %q (sent %v)", k, ssal)
+		}
+	}
+	if ssal["granted"] != "false" || ssal["is_ngso"] != "true" {
+		t.Errorf("boolean filters: %v", ssal)
+	}
+	callText(t, cs, "search_space_station_authorizations", map[string]any{"operator": "telesat"})
+	for _, k := range []string{"is_ngso", "foreign", "granted", "count_only"} {
+		if _, ok := got["/api/v1/space-station-authorizations"][k]; ok {
+			t.Errorf("unset %s was sent", k)
+		}
+	}
+
+	callText(t, cs, "search_ground_stations", map[string]any{"state": "AK", "group_by": "operator"})
+	if gs := got["/api/v1/ground-stations"]; gs["state"] != "AK" || gs["group_by"] != "operator" {
+		t.Errorf("ground stations: %v", gs)
+	}
+}

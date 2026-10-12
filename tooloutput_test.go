@@ -178,6 +178,8 @@ func TestRowTablesKeepIDs(t *testing.T) {
 			[]string{"| 11700 | 12200 | - | downlink | - | - | FCC | SAT-LOA-1 | - | 2020-05-26 | Space Exploration Holdings | f-1 |"}},
 		{"ground station", groundStationTable, `{"source":"fcc_ibfs","station_name":"E190123","operator":"SpaceX","state":"HI","latitude":21.3069,"longitude":-157.8583,"frequency_bands":["Ka","Ku"],"distance_km":12.34}`,
 			[]string{"| fcc_ibfs | E190123 | SpaceX | HI | 21.3069 | -157.8583 | 12.3 | Ka,Ku | - | - |"}},
+		{"space station", spaceStationTable, `{"call_sign":"S2357","system_name":"Lightspeed","operator_name":"Telesat","licensing_admin":"Canada","is_ngso":true,"frequencies":"17.8-20.2 GHz|27.5-30 GHz","granted":true,"foreign":true,"us_market_access":true,"entity_id":"e-1"}`,
+			[]string{"| S2357 | Lightspeed | Telesat | Canada | NGSO | - | 17.8-20.2 GHz\\|27.5-30 GHz | - | yes | yes | yes | e-1 |"}},
 	}
 	for _, c := range cases {
 		got := c.t.row(0, json.RawMessage(c.row))

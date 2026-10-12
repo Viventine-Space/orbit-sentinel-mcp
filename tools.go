@@ -54,14 +54,14 @@ type searchPositionsInput struct {
 	Position     string `json:"position,omitempty" jsonschema:"Filter by per-argument position: support|oppose|modify|neutral"`
 	TargetParty  string `json:"target_party,omitempty" jsonschema:"Substring match on target_party (the entity being addressed or opposed)"`
 	Filer        string `json:"filer,omitempty" jsonschema:"Substring match on the filing party's canonical name"`
-	Query        string `json:"q,omitempty" jsonschema:"Substring search across argument text and executive summaries"`
+	Query        string `json:"q,omitempty" jsonschema:"Words to find in argument text or executive summaries: every word must appear (in any order), not as an exact phrase"`
 	Limit        int    `json:"limit,omitempty" jsonschema:"Max results (default 25, max 200)"`
 }
 
 type searchEntitiesInput struct {
 	Query   string `json:"q,omitempty" jsonschema:"Fuzzy search on entity name and aliases"`
-	Type    string `json:"type,omitempty" jsonschema:"Filter by entity type (OPERATOR, MANUFACTURER, GOVERNMENT, etc.)"`
-	Country string `json:"country,omitempty" jsonschema:"Filter by country code (US, GB, FR, etc.)"`
+	Type    string `json:"type,omitempty" jsonschema:"Filter by entity type, one of: company, individual, government, corporation"`
+	Country string `json:"country,omitempty" jsonschema:"Filter by country: an ISO code (US, GB, FR) or a country name (United States, France); the API maps either to the stored spellings"`
 	Page    int    `json:"page,omitempty" jsonschema:"Page number (default 1)"`
 	PerPage int    `json:"per_page,omitempty" jsonschema:"Results per page (default 25, max 100)"`
 }
@@ -140,11 +140,26 @@ type searchGroundStationsInput struct {
 	Near     string `json:"near,omitempty" jsonschema:"Proximity anchor as 'lat,lon' (e.g. '38.9,-77.0'); returns stations within radius_km ordered by distance"`
 	RadiusKM string `json:"radius_km,omitempty" jsonschema:"Search radius in km for near= (default 500)"`
 	Name     string `json:"name,omitempty" jsonschema:"Substring match on station name / FCC call sign"`
-	Band     string `json:"band,omitempty" jsonschema:"Frequency band, exact match against the station's band list (e.g. Ku); requires source=extracted"`
+	Band     string `json:"band,omitempty" jsonschema:"Satellite frequency band, one of: L, S, C, X, Ku, Ka, V, E. For fcc and the national registers a station matches only if one of its frequency ranges lies entirely within the band (V = 37,500-51,400 MHz); for source=extracted it is an exact match against the station's extracted band list"`
 	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator / licensee name"`
-	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID; requires source=extracted"`
-	Source   string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (authoritative FCC IBFS registry, reliable coordinates) or 'extracted' (entity-linked, LLM-extracted from filings, carries bands). Defaults to fcc for proximity, extracted for band/entity searches."`
+	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID (the filing's applicant); fcc or extracted only"`
+	State    string `json:"state,omitempty" jsonschema:"U.S. state or territory code of the station site (e.g. AK, HI); requires source=fcc"`
+	GroupBy  string `json:"group_by,omitempty" jsonschema:"'state' or 'operator': return distinct call-sign counts per state or operator instead of rows (total is the distinct call signs matched); requires source=fcc"`
+	Source   string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (default; FCC IBFS earth-station filings through 2025-06-17, one row per call sign, reliable coordinates), 'acma', 'ised' or 'ofcom' (Australian, Canadian or UK earth-station register), or 'extracted' (LLM-extracted from filings, carries band names, coordinates are lossy)"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
+}
+
+type spaceStationAuthorizationsInput struct {
+	Operator       string `json:"operator,omitempty" jsonschema:"Substring match on operator name"`
+	System         string `json:"system,omitempty" jsonschema:"Substring match on system name"`
+	LicensingAdmin string `json:"licensing_admin,omitempty" jsonschema:"Substring match on licensing administration (e.g. Canada, United Kingdom)"`
+	CallSign       string `json:"call_sign,omitempty" jsonschema:"FCC call sign (exact match, case-insensitive)"`
+	EntityID       string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
+	IsNGSO         *bool  `json:"is_ngso,omitempty" jsonschema:"true for NGSO systems, false for GSO"`
+	Foreign        *bool  `json:"foreign,omitempty" jsonschema:"true for systems licensed by an administration other than the United States, false for U.S.-licensed systems (and rows with no licensing administration)"`
+	Granted        *bool  `json:"granted,omitempty" jsonschema:"true for rows with an entry in the list's Grant column, false for rows without. The FCC fills it for U.S.-licensed systems too, so U.S. market access is granted=true with foreign=true"`
+	CountOnly      bool   `json:"count_only,omitempty" jsonschema:"Return only total (the full match count), no rows. Use for any 'how many' question"`
+	Limit          int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). total always reports the full match count regardless of limit; rows cannot be paged. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type researchInput struct {
@@ -1034,12 +1049,12 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_ground_stations",
-		Description: "Search ground / earth stations by name, frequency band, operator, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Proximity defaults to the authoritative FCC IBFS registry (reliable coordinates); band/entity searches use the entity-linked extracted set. Each result is labeled with its source. Use for 'earth stations within 200km of 38.9,-77.0' or an operator's gateway footprint.",
+		Description: "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register, source=extracted the stations extracted from filings. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket. Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchGroundStationsInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"near": input.Near, "radius_km": input.RadiusKM, "name": input.Name,
 			"band": input.Band, "operator": input.Operator, "entity_id": input.EntityID,
-			"source": input.Source,
+			"state": input.State, "group_by": input.GroupBy, "source": input.Source,
 		}
 		if input.Limit > 0 {
 			params["limit"] = strconv.Itoa(input.Limit)
@@ -1090,6 +1105,32 @@ func registerTools(s *mcp.Server, client *APIClient) {
 			return errorResult("Error fetching milestones: " + err.Error()), nil, nil
 		}
 		return textResult(formatRows(data, nil)), nil, nil
+	})
+
+	wrapAddTool(s, &mcp.Tool{
+		Name:        "search_space_station_authorizations",
+		Description: "Search the FCC Approved Space Station List (SSAL): U.S.-licensed space stations and foreign-licensed ones approved for U.S. market access, by operator, system, licensing administration, call sign, entity, orbit type (is_ngso), foreign licensing (foreign) and grant (granted). Each row carries us_market_access (granted and foreign). Every response includes `total`, the full match count; set count_only=true to skip the rows. Use for 'how many foreign NGSO systems have U.S. market access?' (is_ngso=true, foreign=true, granted=true, count_only=true) or 'is Telesat's system on the SSAL?'.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input spaceStationAuthorizationsInput) (*mcp.CallToolResult, any, error) {
+		params := map[string]string{
+			"operator": input.Operator, "system": input.System, "licensing_admin": input.LicensingAdmin,
+			"call_sign": input.CallSign, "entity_id": input.EntityID,
+		}
+		for k, v := range map[string]*bool{"is_ngso": input.IsNGSO, "foreign": input.Foreign, "granted": input.Granted} {
+			if v != nil {
+				params[k] = strconv.FormatBool(*v)
+			}
+		}
+		if input.CountOnly {
+			params["count_only"] = "true"
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
+		}
+		data, err := client.SearchSpaceStationAuthorizations(ctx, params)
+		if err != nil {
+			return errorResult("Error searching space station authorizations: " + err.Error()), nil, nil
+		}
+		return textResult(formatRows(data, spaceStationTable)), nil, nil
 	})
 }
 
@@ -1315,6 +1356,42 @@ var groundStationTable = &rowTable{
 			deref(r.Source), deref(r.StationName), deref(r.Operator), mdCell(loc),
 			derefFloat(r.Latitude, 4), derefFloat(r.Longitude, 4), derefFloat(r.DistanceKM, 1),
 			mdCell(bands), derefFloat(r.AntennaDiameterM, 1), deref(r.EntityID))
+	},
+}
+
+var spaceStationTable = &rowTable{
+	header: "| Call sign | System | Operator | Licensing admin | Orbit | Orbital location | Frequencies | Launched | Granted | Foreign | US market access | Entity |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|---|\n",
+	row: func(_ int, raw json.RawMessage) string {
+		var r struct {
+			CallSign        string  `json:"call_sign"`
+			SystemName      string  `json:"system_name"`
+			OperatorName    string  `json:"operator_name"`
+			LicensingAdmin  *string `json:"licensing_admin"`
+			OrbitalLocation *string `json:"orbital_location"`
+			IsNGSO          bool    `json:"is_ngso"`
+			Frequencies     *string `json:"frequencies"`
+			LaunchDate      *string `json:"launch_date"`
+			Granted         bool    `json:"granted"`
+			Foreign         bool    `json:"foreign"`
+			USMarketAccess  bool    `json:"us_market_access"`
+			EntityID        *string `json:"entity_id"`
+		}
+		_ = json.Unmarshal(raw, &r)
+		orbit := "GSO"
+		if r.IsNGSO {
+			orbit = "NGSO"
+		}
+		yesNo := func(b bool) string {
+			if b {
+				return "yes"
+			}
+			return "no"
+		}
+		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+			mdCell(r.CallSign), mdCell(r.SystemName), mdCell(r.OperatorName), deref(r.LicensingAdmin), orbit,
+			deref(r.OrbitalLocation), deref(r.Frequencies), deref(r.LaunchDate),
+			yesNo(r.Granted), yesNo(r.Foreign), yesNo(r.USMarketAccess), deref(r.EntityID))
 	},
 }
 

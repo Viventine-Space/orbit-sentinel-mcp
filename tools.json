@@ -73,7 +73,7 @@
   },
   {
     "name": "search_ground_stations",
-    "desc": "Search ground / earth stations by name, frequency band, operator, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Proximity defaults to the authoritative FCC IBFS registry (reliable coordinates); band/entity searches use the entity-linked extracted set. Each result is labeled with its source. Use for 'earth stations within 200km of 38.9,-77.0' or an operator's gateway footprint."
+    "desc": "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register, source=extracted the stations extracted from filings. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket. Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint."
   },
   {
     "name": "search_federal_awards",
@@ -82,5 +82,9 @@
   {
     "name": "milestone_adherence",
     "desc": "FCC deployment milestone adherence (47 CFR 25.164): which authorized satellite systems met their deployment milestones. Grading is deliberately asymmetric — an adverse grade must be earned, a favourable grade must be labelled. 'missed' and 'met_late' appear only where a human verified a cited FCC document; otherwise the row reads 'verification_required', which asserts nothing about the operator and must not be reported as a miss. Favourable grades are never withheld, so read verification_status: 'arithmetic_corroborated' means the deployment counts independently agree — a computation, not a person, did the corroborating — and 'uncorroborated' means the arithmetic is SILENT, not that it disagrees; no favourable grade is currently contradicted by the data. computed_grade always carries the raw arithmetic even where classification withholds it. Filter by call_sign, classification, is_ngso; set summary=true for aggregate counts, which include withheld_adverse and uncorroborated_favourable."
+  },
+  {
+    "name": "search_space_station_authorizations",
+    "desc": "Search the FCC Approved Space Station List (SSAL): U.S.-licensed space stations and foreign-licensed ones approved for U.S. market access, by operator, system, licensing administration, call sign, entity, orbit type (is_ngso), foreign licensing (foreign) and grant (granted). Each row carries us_market_access (granted and foreign). Every response includes `total`, the full match count; set count_only=true to skip the rows. Use for 'how many foreign NGSO systems have U.S. market access?' (is_ngso=true, foreign=true, granted=true, count_only=true) or 'is Telesat's system on the SSAL?'."
   }
 ]

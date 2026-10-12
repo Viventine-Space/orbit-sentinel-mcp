@@ -351,6 +351,11 @@ func (c *APIClient) GetMilestones(ctx context.Context, params map[string]string)
 	return c.doGet(ctx, buildPath("/api/v1/milestones", params))
 }
 
+// SearchSpaceStationAuthorizations calls GET /api/v1/space-station-authorizations.
+func (c *APIClient) SearchSpaceStationAuthorizations(ctx context.Context, params map[string]string) (json.RawMessage, error) {
+	return c.doGet(ctx, buildPath("/api/v1/space-station-authorizations", params))
+}
+
 // GetMilestonesSummary calls GET /api/v1/milestones/summary.
 func (c *APIClient) GetMilestonesSummary(ctx context.Context) (json.RawMessage, error) {
 	return c.doGet(ctx, "/api/v1/milestones/summary")

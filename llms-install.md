@@ -5,7 +5,7 @@ MCP server on a user's machine.
 
 ## Overview
 
-- **What it is**: stdio MCP server exposing 21 tools over 950K+ space
+- **What it is**: stdio MCP server exposing 22 tools over 950K+ space
   regulatory filings (FCC, ITU, UNOOSA, FAA-AST) via the Orbit Sentinel REST API.
 - **Runtime**: single static Go binary. No Node, Python, or Docker required.
 - **Credentials**: requires `MCP_API_KEY`. Free beta keys via magic-link signup
@@ -92,7 +92,7 @@ Standard MCP JSON block (Cline `cline_mcp_settings.json`, Claude Desktop
 
 ## Step 5 — Confirm
 
-After the client reloads, 20 tools should be listed (`research`,
+After the client reloads, 22 tools should be listed (`research`,
 `search_filings`, `get_entity_profile`, `get_entity_dossier`,
 `search_semantic`, `get_filing_trends`, …). Test with a call to `research`
 using query `"Starlink"` — a JSON result list confirms the API key works.

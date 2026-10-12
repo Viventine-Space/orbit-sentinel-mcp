@@ -75,3 +75,35 @@ func TestSearchFilingsSchemaListsAPIValues(t *testing.T) {
 		t.Errorf("get_filing_detail.id does not mention file numbers: %q", props["get_filing_detail"]["id"])
 	}
 }
+
+// Schema text follows how the API matches (BUGLIST day-3 #36, #37, #44).
+func TestSchemaTextMatchesAPIBehavior(t *testing.T) {
+	props := toolProps(t)
+	se := props["search_entities"]
+	for _, v := range []string{"company", "individual", "government", "corporation"} {
+		if !strings.Contains(se["type"], v) {
+			t.Errorf("search_entities.type does not list %s: %q", v, se["type"])
+		}
+	}
+	if strings.Contains(se["type"], "OPERATOR") || strings.Contains(se["type"], "MANUFACTURER") {
+		t.Errorf("search_entities.type lists values the API does not store: %q", se["type"])
+	}
+	if !strings.Contains(se["country"], "name") {
+		t.Errorf("search_entities.country does not say it accepts a country name: %q", se["country"])
+	}
+	if q := props["search_positions"]["q"]; !strings.Contains(q, "every word") || strings.Contains(q, "Substring") {
+		t.Errorf("search_positions.q does not describe all-words matching: %q", q)
+	}
+	gs := props["search_ground_stations"]
+	if gs["state"] == "" || !strings.Contains(gs["group_by"], "state") || !strings.Contains(gs["group_by"], "operator") {
+		t.Errorf("search_ground_stations lacks state/group_by: %q / %q", gs["state"], gs["group_by"])
+	}
+	if strings.Contains(gs["band"], "requires source=extracted") || !strings.Contains(gs["band"], "entirely within") {
+		t.Errorf("search_ground_stations.band misdescribes band matching: %q", gs["band"])
+	}
+	for _, src := range []string{"acma", "ised", "ofcom"} {
+		if !strings.Contains(gs["source"], src) {
+			t.Errorf("search_ground_stations.source does not list %s: %q", src, gs["source"])
+		}
+	}
+}

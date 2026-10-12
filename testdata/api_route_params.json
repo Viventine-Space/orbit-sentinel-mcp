@@ -20,6 +20,7 @@
     "periods",
     "top_movers"
   ],
+  "/api/v1/attachments/{id}/download": [],
   "/api/v1/bonds": [
     "entity_id",
     "operator",
@@ -119,14 +120,22 @@
     "per_page"
   ],
   "/api/v1/ground-stations": [
+    "app_type",
     "band",
+    "count_only",
     "entity_id",
+    "filed_after",
+    "filed_before",
+    "freq_max_mhz",
+    "freq_min_mhz",
+    "group_by",
     "limit",
     "name",
     "near",
     "operator",
     "radius_km",
-    "source"
+    "source",
+    "state"
   ],
   "/api/v1/launches": [
     "entity_id",
@@ -150,6 +159,7 @@
     "stance",
     "target_party"
   ],
+  "/api/v1/runs": [],
   "/api/v1/satellites": [
     "cospar",
     "count_only",
@@ -184,6 +194,18 @@
     "limit",
     "since",
     "ticker"
+  ],
+  "/api/v1/space-station-authorizations": [
+    "call_sign",
+    "count_only",
+    "entity_id",
+    "foreign",
+    "granted",
+    "is_ngso",
+    "licensing_admin",
+    "limit",
+    "operator",
+    "system"
   ],
   "/api/v1/spectrum": [
     "agency",
