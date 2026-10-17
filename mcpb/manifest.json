@@ -7,13 +7,13 @@
   "long_description": "Orbit Sentinel provides 22 tools over 950K+ space regulatory filings from the FCC, ITU, UNOOSA, and FAA-AST: semantic search, entity dossiers (filings + SEC + sanctions screening), spectrum-band holdings, launch licenses, and filing trends and distributions. A thin open-source (MIT) stdio client of the Orbit Sentinel REST API. Get a free beta API key via magic-link signup at https://console.viventine.com.",
   "author": {
     "name": "Viventine Space Systems LLC",
-    "url": "https://viventine.com"
+    "url": "https://www.viventine.com/"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/Viventine-Space/orbit-sentinel-mcp.git"
   },
-  "homepage": "https://viventine.com/orbit-sentinel/",
+  "homepage": "https://www.viventine.com/orbit-sentinel/",
   "support": "https://github.com/Viventine-Space/orbit-sentinel-mcp/issues",
   "server": {
     "type": "binary",

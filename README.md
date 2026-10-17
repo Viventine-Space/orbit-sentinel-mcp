@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/github/license/Viventine-Space/orbit-sentinel-mcp)](LICENSE)
 [![MCP Badge](https://lobehub.com/badge/mcp/viventine-space-orbit-sentinel-mcp)](https://lobehub.com/mcp/viventine-space-orbit-sentinel-mcp)
 
-MCP (Model Context Protocol) server for [Orbit Sentinel](https://viventine.com) —
+MCP (Model Context Protocol) server for [Orbit Sentinel](https://www.viventine.com/orbit-sentinel/) —
 950K+ space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
 queryable from Claude Desktop, Claude Code, Cursor, or any MCP client.
 
