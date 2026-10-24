@@ -1,0 +1,23 @@
+# Weekly scan for known vulnerabilities in code the module actually calls,
+# Go standard library included. Go is pinned to the minor the images build
+# with (golang:1.25-alpine), at its latest patch, so stdlib results match prod.
+name: govulncheck
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          check-latest: true
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
