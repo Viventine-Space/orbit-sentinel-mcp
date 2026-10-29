@@ -61,7 +61,7 @@ func TestSearchFilingsSchemaListsAPIValues(t *testing.T) {
 	if strings.Contains(sf["status"], "orbit") {
 		t.Errorf("search_filings.status describes orbital status: %q", sf["status"])
 	}
-	for _, p := range []string{"source_id", "source_id_prefix", "entity_id"} {
+	for _, p := range []string{"source_id", "source_id_prefix", "call_sign", "entity_id"} {
 		if sf[p] == "" {
 			t.Errorf("search_filings has no %s parameter", p)
 		}

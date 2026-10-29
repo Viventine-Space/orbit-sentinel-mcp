@@ -5,7 +5,7 @@
   },
   {
     "name": "search_filings",
-    "desc": "Search space regulatory filings by keyword, agency, type, status, date range, agency file number (exact or prefix such as SES-LIC) or applicant entity. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies."
+    "desc": "Search space regulatory filings by keyword, agency, type, status, date range, agency file number (exact or prefix such as SES-LIC), FCC station call sign or applicant entity. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies."
   },
   {
     "name": "get_filing_detail",

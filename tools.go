@@ -26,6 +26,7 @@ type searchFilingsInput struct {
 	Docket         string `json:"docket,omitempty" jsonschema:"Filter by docket number (exact match)"`
 	SourceID       string `json:"source_id,omitempty" jsonschema:"Agency file number, exact match (e.g. SAT-LOA-20200526-00055, LLO-22-126)"`
 	SourceIDPrefix string `json:"source_id_prefix,omitempty" jsonschema:"File-number prefix, e.g. SES-LIC, SAT-LOA, SES-T/C or LLO: filters by FCC application type"`
+	CallSign       string `json:"call_sign,omitempty" jsonschema:"FCC station call sign, e.g. E970199 or ANIK D (case-insensitive): every filing for that earth or space station. A call sign is a station, not a filing id; use this instead of get_filing_detail"`
 	EntityID       string `json:"entity_id,omitempty" jsonschema:"Applicant entity UUID (from search_entities): filings this entity filed"`
 	FiledAfter     string `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
 	FiledBefore    string `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`
@@ -35,7 +36,7 @@ type searchFilingsInput struct {
 }
 
 type getFilingInput struct {
-	ID string `json:"id" jsonschema:"Filing UUID or agency file number (e.g. SES-STA-20250604-00870, LLO-22-126). A file number shared by several filings returns an error listing their UUIDs"`
+	ID string `json:"id" jsonschema:"Filing UUID or agency file number (e.g. SES-STA-20250604-00870, LLO-22-126). A file number shared by several filings returns an error listing their UUIDs. Not a call sign: for a station call sign such as E970199 use search_filings call_sign"`
 }
 
 type searchSemanticInput struct {
@@ -699,13 +700,13 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_filings",
-		Description: "Search space regulatory filings by keyword, agency, type, status, date range, agency file number (exact or prefix such as SES-LIC) or applicant entity. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies.",
+		Description: "Search space regulatory filings by keyword, agency, type, status, date range, agency file number (exact or prefix such as SES-LIC), FCC station call sign or applicant entity. Returns a paginated list of filings from FCC, ITU, UNOOSA, and other agencies.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchFilingsInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"q": input.Query, "agency": input.Agency, "type": input.Type,
 			"status": input.Status, "docket": input.Docket,
 			"filed_after": input.FiledAfter, "filed_before": input.FiledBefore,
-			"source_id": input.SourceID, "source_id_prefix": input.SourceIDPrefix, "entity_id": input.EntityID,
+			"source_id": input.SourceID, "source_id_prefix": input.SourceIDPrefix, "call_sign": input.CallSign, "entity_id": input.EntityID,
 		}
 		if input.CountOnly {
 			params["count_only"] = "true"

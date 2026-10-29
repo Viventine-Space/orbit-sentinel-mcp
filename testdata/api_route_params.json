@@ -69,6 +69,7 @@
   ],
   "/api/v1/export/filings": [
     "agency",
+    "call_sign",
     "docket",
     "entity_id",
     "filed_after",
@@ -94,6 +95,7 @@
   ],
   "/api/v1/filings": [
     "agency",
+    "call_sign",
     "count_only",
     "docket",
     "entity_id",
@@ -159,7 +161,9 @@
     "stance",
     "target_party"
   ],
-  "/api/v1/runs": [],
+  "/api/v1/runs": [
+    "limit"
+  ],
   "/api/v1/satellites": [
     "cospar",
     "count_only",
