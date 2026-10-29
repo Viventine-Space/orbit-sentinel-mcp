@@ -25,7 +25,7 @@ type searchFilingsInput struct {
 	Status         string `json:"status,omitempty" jsonschema:"Filing (application) status, one of: ACCEPTED, CANCELLED, COMMENT_PERIOD, DENIED, DISMISSED, EXPIRED, FILED, GRANTED, PUBLIC_NOTICE, UNDER_REVIEW, UNKNOWN, WITHDRAWN"`
 	Docket         string `json:"docket,omitempty" jsonschema:"Filter by docket number (exact match)"`
 	SourceID       string `json:"source_id,omitempty" jsonschema:"Agency file number, exact match (e.g. SAT-LOA-20200526-00055, LLO-22-126)"`
-	SourceIDPrefix string `json:"source_id_prefix,omitempty" jsonschema:"File-number prefix, e.g. SES-LIC, SAT-LOA, SES-T/C or LLO: filters by FCC application type"`
+	SourceIDPrefix string `json:"source_id_prefix,omitempty" jsonschema:"File-number prefix: an application type (SES-LIC, SAT-LOA, SES-T/C, LLO), narrowed by year (SES-LIC-2024, VOL-23), a whole file number to include its revisions (VOL-23-129), or a UN document series (ST/SG/SER.E/12, A/AC.105)"`
 	CallSign       string `json:"call_sign,omitempty" jsonschema:"FCC station call sign, e.g. E970199 or ANIK D (case-insensitive): every filing for that earth or space station. A call sign is a station, not a filing id; use this instead of get_filing_detail"`
 	EntityID       string `json:"entity_id,omitempty" jsonschema:"Applicant entity UUID (from search_entities): filings this entity filed"`
 	FiledAfter     string `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
