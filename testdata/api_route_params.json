@@ -190,6 +190,7 @@
     "name"
   ],
   "/api/v1/sec/filings": [
+    "accession_number",
     "cik",
     "company",
     "entity_id",

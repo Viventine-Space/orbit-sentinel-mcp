@@ -36,7 +36,7 @@ type searchFilingsInput struct {
 }
 
 type getFilingInput struct {
-	ID string `json:"id" jsonschema:"Filing UUID or agency file number (e.g. SES-STA-20250604-00870, LLO-22-126). A file number shared by several filings returns an error listing their UUIDs. Not a call sign: for a station call sign such as E970199 use search_filings call_sign"`
+	ID string `json:"id" jsonschema:"Filing UUID or agency file number (e.g. SES-STA-20250604-00870, LLO-22-126). A file number shared by several filings returns an error listing their UUIDs. Not a call sign: for a station call sign such as E970199 use search_filings call_sign. Not an SEC accession number (0001415404-26-000042): use search_sec_filings accession_number"`
 }
 
 type searchSemanticInput struct {
@@ -84,13 +84,14 @@ type searchSpectrumInput struct {
 }
 
 type searchSECInput struct {
-	Ticker   string `json:"ticker,omitempty" jsonschema:"Company ticker (e.g. ASTS)"`
-	CIK      string `json:"cik,omitempty" jsonschema:"SEC CIK number"`
-	Company  string `json:"company,omitempty" jsonschema:"Substring match on company name"`
-	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved entity UUID"`
-	FormType string `json:"form_type,omitempty" jsonschema:"SEC form type (e.g. 8-K, 10-Q, 10-K)"`
-	Since    string `json:"since,omitempty" jsonschema:"Only filings on/after this date (YYYY-MM-DD)"`
-	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 100). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
+	Ticker          string `json:"ticker,omitempty" jsonschema:"Company ticker (e.g. ASTS)"`
+	CIK             string `json:"cik,omitempty" jsonschema:"SEC CIK number"`
+	Company         string `json:"company,omitempty" jsonschema:"Substring match on company name"`
+	EntityID        string `json:"entity_id,omitempty" jsonschema:"Filter by resolved entity UUID"`
+	FormType        string `json:"form_type,omitempty" jsonschema:"SEC form type (e.g. 8-K, 10-Q, 10-K)"`
+	Since           string `json:"since,omitempty" jsonschema:"Only filings on/after this date (YYYY-MM-DD)"`
+	AccessionNumber string `json:"accession_number,omitempty" jsonschema:"SEC accession number, e.g. 0001415404-26-000042 (the 18 digits without dashes work too): fetch that one filing, e.g. one listed in an entity dossier"`
+	Limit           int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 100). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type searchScreeningInput struct {
@@ -968,11 +969,12 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_sec_filings",
-		Description: "Search SEC filings for tracked space companies (8-K material events, 10-Q, 10-K). Filter by ticker, CIK, company name, resolved entity, form type, or date. Use for financial signals — e.g. recent 8-Ks for a satellite operator.",
+		Description: "Search SEC filings for tracked space companies (8-K material events, 10-Q, 10-K). Filter by ticker, CIK, company name, resolved entity, form type, or date, or fetch one filing by accession number. Use for financial signals — e.g. recent 8-Ks for a satellite operator.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSECInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"ticker": input.Ticker, "cik": input.CIK, "company": input.Company,
 			"entity_id": input.EntityID, "form_type": input.FormType, "since": input.Since,
+			"accession_number": input.AccessionNumber,
 		}
 		if input.Limit > 0 {
 			params["limit"] = strconv.Itoa(input.Limit)

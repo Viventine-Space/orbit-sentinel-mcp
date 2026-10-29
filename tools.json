@@ -57,7 +57,7 @@
   },
   {
     "name": "search_sec_filings",
-    "desc": "Search SEC filings for tracked space companies (8-K material events, 10-Q, 10-K). Filter by ticker, CIK, company name, resolved entity, form type, or date. Use for financial signals — e.g. recent 8-Ks for a satellite operator."
+    "desc": "Search SEC filings for tracked space companies (8-K material events, 10-Q, 10-K). Filter by ticker, CIK, company name, resolved entity, form type, or date, or fetch one filing by accession number. Use for financial signals — e.g. recent 8-Ks for a satellite operator."
   },
   {
     "name": "search_screening",
