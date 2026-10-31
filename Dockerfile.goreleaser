@@ -1,6 +1,6 @@
 # Used by goreleaser (dockers_v2): prebuilt binaries land in the build
 # context under $TARGETPLATFORM directories, e.g. linux/amd64/.
-FROM alpine:3.21
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates
 ARG TARGETPLATFORM
 COPY $TARGETPLATFORM/orbit-sentinel-mcp /usr/local/bin/orbit-sentinel-mcp
