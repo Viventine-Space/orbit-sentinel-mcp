@@ -23,7 +23,7 @@ type searchFilingsInput struct {
 	Agency         string `json:"agency,omitempty" jsonschema:"Filter by source agency, one of: ACMA_AU, CNES_FR, FAA_AST, FCC, ITU, NOAA, NTIA, OFCOM_UK, OTHER, SEC, STATE_AK, STATE_FL, STATE_TX, STATE_VA, UN_OOSA, USPTO"`
 	Type           string `json:"type,omitempty" jsonschema:"Filter by filing type, one of: ADVANCE_PUBLICATION, COMMENT, EARTH_STATION_PERMIT, ENVIRONMENTAL_ASSESSMENT, EXPERIMENTAL_LICENSE, EX_PARTE, LAUNCH_LICENSE, MODIFICATION, OPPOSITION, ORBITAL_DEBRIS_PLAN, OTHER, PETITION, REENTRY_LICENSE, REGISTRATION, REMOTE_SENSING_LICENSE, RENEWAL, SATELLITE_LICENSE, SPECIAL_TEMPORARY_AUTH, SPECTRUM_COORDINATION, TRANSFER_OF_CONTROL. For FCC application types such as SES-LIC use source_id_prefix"`
 	Status         string `json:"status,omitempty" jsonschema:"Filing (application) status, one of: ACCEPTED, CANCELLED, COMMENT_PERIOD, DENIED, DISMISSED, EXPIRED, FILED, GRANTED, PUBLIC_NOTICE, UNDER_REVIEW, UNKNOWN, WITHDRAWN"`
-	Docket         string `json:"docket,omitempty" jsonschema:"Filter by docket number (exact match)"`
+	Docket         string `json:"docket,omitempty" jsonschema:"Filter by docket number, e.g. 22-271 (also accepts 'IB Docket No. 22-271', RM-11348, FAA-2024-2006)"`
 	SourceID       string `json:"source_id,omitempty" jsonschema:"Agency file number, exact match (e.g. SAT-LOA-20200526-00055, LLO-22-126)"`
 	SourceIDPrefix string `json:"source_id_prefix,omitempty" jsonschema:"File-number prefix: an application type (SES-LIC, SAT-LOA, SES-T/C, LLO), narrowed by year (SES-LIC-2024, VOL-23), a whole file number to include its revisions (VOL-23-129), or a UN document series (ST/SG/SER.E/12, A/AC.105)"`
 	CallSign       string `json:"call_sign,omitempty" jsonschema:"FCC station call sign, e.g. E970199 or ANIK D (case-insensitive): every filing for that earth or space station. A call sign is a station, not a filing id; use this instead of get_filing_detail"`
@@ -49,7 +49,9 @@ type searchSemanticInput struct {
 }
 
 type searchPositionsInput struct {
-	Docket       string `json:"docket,omitempty" jsonschema:"Filter by docket number (e.g. '25-306')"`
+	Docket       string `json:"docket,omitempty" jsonschema:"Filter by docket number, e.g. 25-306 (also accepts 'IB Docket No. 25-306', RM-11348, FAA-2024-2006)"`
+	FiledAfter   string `json:"filed_after,omitempty" jsonschema:"Only arguments from filings filed on/after this date (YYYY-MM-DD)"`
+	FiledBefore  string `json:"filed_before,omitempty" jsonschema:"Only arguments from filings filed on/before this date (YYYY-MM-DD)"`
 	Stance       string `json:"stance,omitempty" jsonschema:"Filter by overall stance: support|oppose|qualified_support|qualified_opposition|informational"`
 	ArgumentType string `json:"argument_type,omitempty" jsonschema:"Filter by argument type: legal|technical|economic|policy|procedural"`
 	Position     string `json:"position,omitempty" jsonschema:"Filter by per-argument position: support|oppose|modify|neutral"`
@@ -90,6 +92,8 @@ type searchSECInput struct {
 	EntityID        string `json:"entity_id,omitempty" jsonschema:"Filter by resolved entity UUID"`
 	FormType        string `json:"form_type,omitempty" jsonschema:"SEC form type (e.g. 8-K, 10-Q, 10-K)"`
 	Since           string `json:"since,omitempty" jsonschema:"Only filings on/after this date (YYYY-MM-DD)"`
+	Until           string `json:"until,omitempty" jsonschema:"Only filings on/before this date (YYYY-MM-DD)"`
+	FullExcerpt     bool   `json:"full_excerpt,omitempty" jsonschema:"If true, show each row's full stored text excerpt (up to 4,000 characters) instead of a 200-character preview on the first 10 rows; pair with a small limit"`
 	AccessionNumber string `json:"accession_number,omitempty" jsonschema:"SEC accession number, e.g. 0001415404-26-000042 (the 18 digits without dashes work too): fetch that one filing, e.g. one listed in an entity dossier"`
 	Limit           int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 100). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
@@ -110,10 +114,10 @@ type getDossierInput struct {
 }
 
 type searchSatellitesInput struct {
-	Name           string `json:"name,omitempty" jsonschema:"Substring match on satellite name"`
+	Name           string `json:"name,omitempty" jsonschema:"Substring match on satellite name or alternate names, ignoring case, accents, spaces and punctuation (NOAA-16 matches NOAA 16 DEB)"`
 	Operator       string `json:"operator,omitempty" jsonschema:"Substring match on operator name (e.g. SpaceX); note many rows use a country code (US, CIS, PRC) as the operator"`
-	Country        string `json:"country,omitempty" jsonschema:"Operator country code (exact match)"`
-	OrbitClass     string `json:"orbit_class,omitempty" jsonschema:"Orbit class (e.g. LEO, MEO, GEO)"`
+	Country        string `json:"country,omitempty" jsonschema:"Operator country as a code or name: US, China (PRC, CN), Russia (CIS, RU), UK, Japan, India, France, Germany and ~40 more match every spelling the catalog uses for that country; CIS covers the USSR and Russia. Other values match exactly, case-insensitively. International organisations keep their own codes (ESA, ITSO, EUTE, SES, GLOB, ORB)"`
+	OrbitClass     string `json:"orbit_class,omitempty" jsonschema:"Orbit class, exact uppercase value, one of: LEO (apogee below 2,000 km), MEO (perigee above 2,000 km and apogee below 35,000 km), GEO (perigee above 35,000 km and apogee below 36,500 km), HEO (perigee below 2,000 km and apogee above 35,000 km, e.g. GTO and Molniya), OTHER (any other orbit). Objects with no known perigee/apogee have no class and match none. Any other value returns 0 rows"`
 	Status         string `json:"status,omitempty" jsonschema:"Orbital status: active (on orbit) or decayed; matches every catalog spelling of each"`
 	ObjectType     string `json:"object_type,omitempty" jsonschema:"Object type: payload, rocket_body, debris, or unknown. Use payload to count satellites rather than all cataloged objects. unknown also matches ~340 merge-era rows with no type; payload/rocket_body/debris exclude them"`
 	LaunchedAfter  string `json:"launched_after,omitempty" jsonschema:"Launch date on or after (YYYY-MM-DD)"`
@@ -121,10 +125,12 @@ type searchSatellitesInput struct {
 	DecayedAfter   string `json:"decayed_after,omitempty" jsonschema:"Decay/reentry date on or after (YYYY-MM-DD); only decayed objects have a decay date, so this also limits results to decayed objects"`
 	DecayedBefore  string `json:"decayed_before,omitempty" jsonschema:"Decay/reentry date on or before (YYYY-MM-DD)"`
 	CountOnly      bool   `json:"count_only,omitempty" jsonschema:"Return only total (the full match count), no rows. Use for any 'how many' question"`
-	COSPAR         string `json:"cospar,omitempty" jsonschema:"COSPAR / international designator (exact match)"`
+	COSPAR         string `json:"cospar,omitempty" jsonschema:"COSPAR / international designator: a full one (1998-067A) matches that object; a launch designator without the piece letter (1998-067) matches every object from that launch"`
 	NORAD          string `json:"norad,omitempty" jsonschema:"NORAD catalog id (integer)"`
 	EntityID       string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID"`
-	Limit          int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). total always reports the full match count regardless of limit. Output keeps the rows that fit in about 40 KB and says how many it left out"`
+	Sort           string `json:"sort,omitempty" jsonschema:"Row order: launch_date, decay_date, name or norad, ascending; prefix - for descending (default -launch_date, newest first)"`
+	Offset         int    `json:"offset,omitempty" jsonschema:"Rows to skip, for paging past the first limit rows (keep the same filters and sort)"`
+	Limit          int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). total always reports the full match count regardless of limit; page with offset. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type searchFederalAwardsInput struct {
@@ -139,16 +145,22 @@ type searchFederalAwardsInput struct {
 }
 
 type searchGroundStationsInput struct {
-	Near     string `json:"near,omitempty" jsonschema:"Proximity anchor as 'lat,lon' (e.g. '38.9,-77.0'); returns stations within radius_km ordered by distance"`
-	RadiusKM string `json:"radius_km,omitempty" jsonschema:"Search radius in km for near= (default 500)"`
-	Name     string `json:"name,omitempty" jsonschema:"Substring match on station name / FCC call sign"`
-	Band     string `json:"band,omitempty" jsonschema:"Satellite frequency band, one of: L, S, C, X, Ku, Ka, V, E. For fcc and the national registers a station matches only if one of its frequency ranges lies entirely within the band (V = 37,500-51,400 MHz); for source=extracted it is an exact match against the station's extracted band list"`
-	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator / licensee name"`
-	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID (the filing's applicant); fcc or extracted only"`
-	State    string `json:"state,omitempty" jsonschema:"U.S. state or territory code of the station site (e.g. AK, HI); requires source=fcc"`
-	GroupBy  string `json:"group_by,omitempty" jsonschema:"'state' or 'operator': return counts per bucket instead of rows. source=fcc counts distinct call signs (total is the call signs matched); source=acma|ised|ofcom|extracted take 'operator' only and count distinct stations"`
-	Source   string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (default; FCC IBFS earth-station filings through 2025-06-17, one row per call sign, reliable coordinates), 'acma', 'ised' or 'ofcom' (Australian, Canadian or UK earth-station register), or 'extracted' (LLM-extracted from filings, carries band names, coordinates are lossy)"`
-	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
+	Near        string `json:"near,omitempty" jsonschema:"Proximity anchor as 'lat,lon' (e.g. '38.9,-77.0'); returns stations within radius_km ordered by distance"`
+	RadiusKM    string `json:"radius_km,omitempty" jsonschema:"Search radius in km for near= (default 500)"`
+	Name        string `json:"name,omitempty" jsonschema:"Substring match on station name / FCC call sign"`
+	Band        string `json:"band,omitempty" jsonschema:"Satellite frequency band, one of: L, S, C, X, Ku, Ka, V, E. For fcc and the national registers a station matches only if one of its frequency ranges lies entirely within the band (V = 37,500-51,400 MHz); for source=extracted it is an exact match against the station's extracted band list"`
+	Operator    string `json:"operator,omitempty" jsonschema:"Substring match on operator / licensee name"`
+	EntityID    string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID (the filing's applicant); fcc or extracted only"`
+	State       string `json:"state,omitempty" jsonschema:"U.S. state or territory code of the station site (e.g. AK, HI); requires source=fcc"`
+	AppType     string `json:"app_type,omitempty" jsonschema:"FCC application type of the station's filing, e.g. LIC, MOD, RWL, STA (SES- prefix optional); requires source=fcc"`
+	FiledAfter  string `json:"filed_after,omitempty" jsonschema:"Station filing date on or after (YYYY-MM-DD); requires source=fcc"`
+	FiledBefore string `json:"filed_before,omitempty" jsonschema:"Station filing date on or before (YYYY-MM-DD); requires source=fcc"`
+	FreqMinMHz  string `json:"freq_min_mhz,omitempty" jsonschema:"Lower frequency bound in MHz: a station matches if one of its frequency ranges lies entirely within freq_min_mhz..freq_max_mhz. Use instead of band, not with it; not for source=extracted"`
+	FreqMaxMHz  string `json:"freq_max_mhz,omitempty" jsonschema:"Upper frequency bound in MHz (see freq_min_mhz)"`
+	CountOnly   bool   `json:"count_only,omitempty" jsonschema:"Return only total (the full match count), no rows. Use for any 'how many' question"`
+	GroupBy     string `json:"group_by,omitempty" jsonschema:"'state' or 'operator': return counts per bucket instead of rows. source=fcc counts distinct call signs (total is the call signs matched); source=acma|ised|ofcom|extracted take 'operator' only and count distinct stations"`
+	Source      string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (default; FCC IBFS earth-station filings through 2025-06-17, one row per call sign, reliable coordinates), 'acma', 'ised' or 'ofcom' (Australian, Canadian or UK earth-station register), or 'extracted' (LLM-extracted from filings, carries band names, coordinates are lossy)"`
+	Limit       int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 type spaceStationAuthorizationsInput struct {
@@ -212,7 +224,8 @@ type milestoneAdherenceInput struct {
 	CallSign       string `json:"call_sign,omitempty" jsonschema:"Filter by FCC call sign (exact match)"`
 	Classification string `json:"classification,omitempty" jsonschema:"Filter by classification: met|met_computed|met_late|pending|extended|waived|missed|verification_required|not_deployment_obligation|attribution_ambiguous|attribution_undetermined|unknown. 'missed_unverified' no longer exists — unverified adverse grades are now 'verification_required'"`
 	IsNGSO         *bool  `json:"is_ngso,omitempty" jsonschema:"Filter by orbit type: true for NGSO, false for GSO"`
-	Summary        bool   `json:"summary,omitempty" jsonschema:"If true, return aggregate counts by classification/orbit type instead of individual rows"`
+	Summary        bool   `json:"summary,omitempty" jsonschema:"If true, return aggregate counts for all systems by classification, split GSO/NGSO (is_ngso false/true); call_sign, classification, is_ngso and limit do not apply"`
+	Limit          int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 100, max 500). total is the full match count regardless of limit; rows cannot be paged, so narrow with call_sign, classification or is_ngso. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
 // --- Response types for JSON parsing ---
@@ -749,7 +762,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_positions",
-		Description: "Search LLM-extracted policy arguments across COMMENT / REPLY / PETITION filings. Filter by docket, overall stance, argument type, target party, or filer. Use this to answer questions like 'who opposed X?', 'what did SpaceX argue in 25-306?', 'which filings support modular satellite licensing?'. Returns one row per (filing, argument).",
+		Description: "Search LLM-extracted policy arguments across COMMENT / REPLY / PETITION filings. Filter by docket, overall stance, argument type, target party, filer, or filing date. Use this to answer questions like 'who opposed X?', 'what did SpaceX argue in 25-306?', 'which filings support modular satellite licensing?'. Returns one row per (filing, argument).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchPositionsInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"docket":        input.Docket,
@@ -759,6 +772,8 @@ func registerTools(s *mcp.Server, client *APIClient) {
 			"target_party":  input.TargetParty,
 			"filer":         input.Filer,
 			"q":             input.Query,
+			"filed_after":   input.FiledAfter,
+			"filed_before":  input.FiledBefore,
 		}
 		if input.Limit > 0 {
 			params["limit"] = strconv.Itoa(input.Limit)
@@ -939,10 +954,14 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		}
 		portfolio, portfolioErr := client.GetBondPortfolio(ctx, params)
 
-		// Also fetch FAA financial responsibility if entity_id specified
+		// FAA financial responsibility for the named operator. The operator
+		// name wins over entity_id: not every FAA order is linked to an entity.
 		var faaData json.RawMessage
-		if input.EntityID != "" {
-			faaData, _ = client.GetFinancialResponsibility(ctx, map[string]string{"entity_id": input.EntityID})
+		switch {
+		case input.Operator != "":
+			faaData, _ = client.GetFinancialResponsibility(ctx, map[string]string{"operator": input.Operator, "per_page": "100"})
+		case input.EntityID != "":
+			faaData, _ = client.GetFinancialResponsibility(ctx, map[string]string{"entity_id": input.EntityID, "per_page": "100"})
 		}
 
 		return textResult(formatBondPortfolio(summary, summaryErr, portfolio, portfolioErr, faaData)), nil, nil
@@ -973,8 +992,11 @@ func registerTools(s *mcp.Server, client *APIClient) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSECInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"ticker": input.Ticker, "cik": input.CIK, "company": input.Company,
-			"entity_id": input.EntityID, "form_type": input.FormType, "since": input.Since,
+			"entity_id": input.EntityID, "form_type": input.FormType, "since": input.Since, "until": input.Until,
 			"accession_number": input.AccessionNumber,
+		}
+		if input.FullExcerpt {
+			params["full_excerpt"] = "true"
 		}
 		if input.Limit > 0 {
 			params["limit"] = strconv.Itoa(input.Limit)
@@ -983,7 +1005,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		if err != nil {
 			return errorResult("Error searching SEC filings: " + err.Error()), nil, nil
 		}
-		return textResult(formatRows(data, secTable)), nil, nil
+		return textResult(formatRows(data, secTableFor(input.FullExcerpt))), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -1027,7 +1049,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_satellites",
-		Description: "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, object type, launch or decay date range, COSPAR, or NORAD id. Joined to the resolved operator entity. Every response includes `total`, the full number of matching objects (rows are capped at 500 and cannot be paged), so answer counting questions from `total` — set count_only=true to skip the rows. Combine filters in one call instead of splitting the search, e.g. a constellation's payloads launched in a given year: name=<constellation>, object_type=payload, launched_after=<YYYY>-01-01, launched_before=<YYYY>-12-31, count_only=true. Use for counting a fleet or a segment, 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet.",
+		Description: "Search the satellite catalog (UCS + Space-Track SATCAT) by name, operator, country, orbit class, status, object type, launch or decay date range, COSPAR, or NORAD id. Joined to the resolved operator entity. Every response includes `total`, the full number of matching objects (rows are capped at 500 per call; page with offset), so answer counting questions from `total` — set count_only=true to skip the rows. Combine filters in one call instead of splitting the search, e.g. a constellation's payloads launched in a given year: name=<constellation>, object_type=payload, launched_after=<YYYY>-01-01, launched_before=<YYYY>-12-31, count_only=true. Use for counting a fleet or a segment, 'what does SpaceX have in LEO?', 'find NORAD 44713', or building an operator's fleet.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSatellitesInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"name": input.Name, "operator": input.Operator, "country": input.Country,
@@ -1036,6 +1058,10 @@ func registerTools(s *mcp.Server, client *APIClient) {
 			"object_type":    input.ObjectType,
 			"launched_after": input.LaunchedAfter, "launched_before": input.LaunchedBefore,
 			"decayed_after": input.DecayedAfter, "decayed_before": input.DecayedBefore,
+			"sort": input.Sort,
+		}
+		if input.Offset > 0 {
+			params["offset"] = strconv.Itoa(input.Offset)
 		}
 		if input.CountOnly {
 			params["count_only"] = "true"
@@ -1058,6 +1084,11 @@ func registerTools(s *mcp.Server, client *APIClient) {
 			"near": input.Near, "radius_km": input.RadiusKM, "name": input.Name,
 			"band": input.Band, "operator": input.Operator, "entity_id": input.EntityID,
 			"state": input.State, "group_by": input.GroupBy, "source": input.Source,
+			"app_type": input.AppType, "filed_after": input.FiledAfter, "filed_before": input.FiledBefore,
+			"freq_min_mhz": input.FreqMinMHz, "freq_max_mhz": input.FreqMaxMHz,
+		}
+		if input.CountOnly {
+			params["count_only"] = "true"
 		}
 		if input.Limit > 0 {
 			params["limit"] = strconv.Itoa(input.Limit)
@@ -1102,6 +1133,9 @@ func registerTools(s *mcp.Server, client *APIClient) {
 		params := map[string]string{"call_sign": input.CallSign, "classification": input.Classification}
 		if input.IsNGSO != nil {
 			params["is_ngso"] = strconv.FormatBool(*input.IsNGSO)
+		}
+		if input.Limit > 0 {
+			params["limit"] = strconv.Itoa(input.Limit)
 		}
 		data, err := client.GetMilestones(ctx, params)
 		if err != nil {
@@ -1249,57 +1283,83 @@ func compactJSON(raw json.RawMessage) string {
 	return buf.String()
 }
 
-var secTable = &rowTable{
-	header: "| Filed | Form | Company | Ticker | CIK | Items | Accession | URL | Entity | Excerpt (first 10 rows) |\n" +
-		"|---|---|---|---|---|---|---|---|---|---|\n",
-	row: func(i int, raw json.RawMessage) string {
-		var r struct {
-			FormType        *string  `json:"form_type"`
-			FiledDate       *string  `json:"filed_date"`
-			AccessionNumber *string  `json:"accession_number"`
-			FilingURL       *string  `json:"filing_url"`
-			Items           []string `json:"items"`
-			TextExcerpt     string   `json:"text_excerpt"`
-			Company         *string  `json:"company"`
-			Ticker          *string  `json:"ticker"`
-			CIK             *string  `json:"cik"`
-			EntityID        *string  `json:"entity_id"`
-		}
-		_ = json.Unmarshal(raw, &r)
-		items := strings.Join(r.Items, ",")
-		if items == "" {
-			items = "-"
-		}
-		excerpt := ""
-		if i < 10 {
-			excerpt = truncate(strings.Join(strings.Fields(r.TextExcerpt), " "), 200)
-		}
-		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
-			deref(r.FiledDate), deref(r.FormType), deref(r.Company), deref(r.Ticker), deref(r.CIK),
-			mdCell(items), deref(r.AccessionNumber), deref(r.FilingURL), deref(r.EntityID), excerpt)
-	},
+var secTable = secTableFor(false)
+
+// secTableFor renders SEC filings with a 200-character excerpt on the first 10
+// rows, or with each row's whole excerpt when full (full_excerpt=true).
+func secTableFor(full bool) *rowTable {
+	excerptHead := "Excerpt (first 10 rows)"
+	if full {
+		excerptHead = "Excerpt"
+	}
+	return &rowTable{
+		header: "| Filed | Period | Form | Company | Ticker | CIK | Items | Accession | URL | Entity | " + excerptHead + " |\n" +
+			"|---|---|---|---|---|---|---|---|---|---|---|\n",
+		row: func(i int, raw json.RawMessage) string {
+			var r struct {
+				FormType        *string  `json:"form_type"`
+				FiledDate       *string  `json:"filed_date"`
+				PeriodOfReport  *string  `json:"period_of_report"`
+				AccessionNumber *string  `json:"accession_number"`
+				FilingURL       *string  `json:"filing_url"`
+				Items           []string `json:"items"`
+				TextExcerpt     string   `json:"text_excerpt"`
+				Company         *string  `json:"company"`
+				Ticker          *string  `json:"ticker"`
+				CIK             *string  `json:"cik"`
+				EntityID        *string  `json:"entity_id"`
+			}
+			_ = json.Unmarshal(raw, &r)
+			items := strings.Join(r.Items, ",")
+			if items == "" {
+				items = "-"
+			}
+			excerpt := strings.Join(strings.Fields(r.TextExcerpt), " ")
+			switch {
+			case full:
+				excerpt = mdCell(excerpt)
+			case i < 10:
+				excerpt = truncate(excerpt, 200)
+			default:
+				excerpt = ""
+			}
+			return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+				deref(r.FiledDate), deref(r.PeriodOfReport), deref(r.FormType), deref(r.Company), deref(r.Ticker), deref(r.CIK),
+				mdCell(items), deref(r.AccessionNumber), deref(r.FilingURL), deref(r.EntityID), excerpt)
+		},
+	}
 }
 
 var satelliteTable = &rowTable{
-	header: "| Name | NORAD | COSPAR | Operator | Country | Orbit | Object type | Status | Launched | Entity |\n" +
-		"|---|---|---|---|---|---|---|---|---|---|\n",
+	header: "| Name | NORAD | COSPAR | Operator | Country | Orbit | Perigee km | Apogee km | Incl deg | Object type | Status | Launched | Decayed | Entity | Also known as |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n",
 	row: func(_ int, raw json.RawMessage) string {
 		var r struct {
-			Name            *string `json:"name"`
-			NoradCatID      *int    `json:"norad_cat_id"`
-			CosparID        *string `json:"cospar_id"`
-			OperatorName    *string `json:"operator_name"`
-			OperatorCountry *string `json:"operator_country"`
-			OrbitClass      *string `json:"orbit_class"`
-			ObjectType      *string `json:"object_type"`
-			OrbitalStatus   *string `json:"orbital_status"`
-			LaunchDate      *string `json:"launch_date"`
-			EntityID        *string `json:"entity_id"`
+			Name            *string  `json:"name"`
+			NoradCatID      *int     `json:"norad_cat_id"`
+			CosparID        *string  `json:"cospar_id"`
+			OperatorName    *string  `json:"operator_name"`
+			OperatorCountry *string  `json:"operator_country"`
+			OrbitClass      *string  `json:"orbit_class"`
+			PerigeeKM       *float64 `json:"perigee_km"`
+			ApogeeKM        *float64 `json:"apogee_km"`
+			InclinationDeg  *float64 `json:"inclination_deg"`
+			ObjectType      *string  `json:"object_type"`
+			OrbitalStatus   *string  `json:"orbital_status"`
+			LaunchDate      *string  `json:"launch_date"`
+			DecayDate       *string  `json:"decay_date"`
+			EntityID        *string  `json:"entity_id"`
+			AlternateNames  []string `json:"alternate_names"`
 		}
 		_ = json.Unmarshal(raw, &r)
-		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+		aka := "-"
+		if len(r.AlternateNames) > 0 {
+			aka = truncate(strings.Join(r.AlternateNames, "; "), 80)
+		}
+		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
 			deref(r.Name), derefInt(r.NoradCatID), deref(r.CosparID), deref(r.OperatorName), deref(r.OperatorCountry),
-			deref(r.OrbitClass), deref(r.ObjectType), deref(r.OrbitalStatus), deref(r.LaunchDate), deref(r.EntityID))
+			deref(r.OrbitClass), derefFloat(r.PerigeeKM, 0), derefFloat(r.ApogeeKM, 0), derefFloat(r.InclinationDeg, 2),
+			deref(r.ObjectType), deref(r.OrbitalStatus), deref(r.LaunchDate), deref(r.DecayDate), deref(r.EntityID), aka)
 	},
 }
 
@@ -1423,12 +1483,12 @@ func formatFilingList(data json.RawMessage) string {
 		return b.String()
 	}
 
-	b.WriteString("| # | ID | Agency | Type | Title | Filed | Applicant |\n")
-	b.WriteString("|---|----|--------|------|-------|-------|-----------|\n")
+	b.WriteString("| # | ID | Agency | Source ID | Type | Title | Filed | Applicant |\n")
+	b.WriteString("|---|----|--------|-----------|------|-------|-------|-----------|\n")
 	for i, f := range items {
 		num := (p.Page-1)*p.PerPage + i + 1
-		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s | %s |\n",
-			num, f.ID, f.SourceAgency, f.FilingType, truncate(deref(f.Title), 60),
+		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s | %s | %s |\n",
+			num, f.ID, f.SourceAgency, mdCell(f.SourceID), f.FilingType, truncate(deref(f.Title), 60),
 			deref(f.FiledDate), deref(f.ApplicantName))
 	}
 	b.WriteString("\n_Source: Orbit Sentinel database. Only cite facts shown above._\n")
@@ -1694,7 +1754,7 @@ func formatSemanticResults(data json.RawMessage) string {
 		fmt.Fprintf(&b, "**Agency:** %s | **Source ID:** %s | **Filed:** %s | **Applicant:** %s\n",
 			r.Agency, r.SourceID, deref(r.FiledDate), deref(r.ApplicantName))
 		fmt.Fprintf(&b, "**Filing ID:** %s\n", r.FilingID)
-		fmt.Fprintf(&b, "\n> %s\n\n", truncate(r.MatchedChunk, 200))
+		fmt.Fprintf(&b, "\n> %s\n\n", truncate(strings.Join(strings.Fields(r.MatchedChunk), " "), 1000))
 	}
 	b.WriteString("_Source: Orbit Sentinel database. Only cite facts shown above._\n")
 	return b.String()
@@ -2406,29 +2466,33 @@ func formatBondPortfolio(summary json.RawMessage, summaryErr error, portfolio js
 		}
 		if err := json.Unmarshal(faaData, &env); err == nil {
 			var items []struct {
-				Operator        string `json:"operator"`
-				LicenseNumber   string `json:"license_number"`
-				VehicleType     string `json:"vehicle_type"`
-				LaunchSite      string `json:"launch_site"`
-				PreflightTPLUSD *int64 `json:"preflight_tpl_usd"`
-				FlightTPLUSD    *int64 `json:"flight_tpl_usd"`
-				LicenseType     string `json:"license_type"`
+				Operator        string  `json:"operator"`
+				LicenseNumber   string  `json:"license_number"`
+				VehicleType     string  `json:"vehicle_type"`
+				LaunchSite      string  `json:"launch_site"`
+				PreflightTPLUSD *int64  `json:"preflight_tpl_usd"`
+				FlightTPLUSD    *int64  `json:"flight_tpl_usd"`
+				ReentryTPLUSD   *int64  `json:"reentry_tpl_usd"`
+				GovtPropertyUSD *int64  `json:"govt_property_usd"`
+				LicenseType     string  `json:"license_type"`
+				EffectiveDate   *string `json:"effective_date"`
+				ExpirationDate  *string `json:"expiration_date"`
 			}
 			if err := json.Unmarshal(env.Data, &items); err == nil && len(items) > 0 {
+				usd := func(v *int64) string {
+					if v == nil {
+						return "N/A"
+					}
+					return fmt.Sprintf("$%d", *v)
+				}
 				b.WriteString("## FAA Financial Responsibility (TPL Coverage)\n\n")
-				b.WriteString("| Operator | License | Vehicle | Site | Preflight TPL | Flight TPL |\n")
-				b.WriteString("|----------|---------|---------|------|--------------|------------|\n")
+				b.WriteString("| Operator | License | Type | Vehicle | Site | Preflight TPL | Flight TPL | Reentry TPL | Govt property | Effective | Expires |\n")
+				b.WriteString("|---|---|---|---|---|---|---|---|---|---|---|\n")
 				for _, item := range items {
-					pf, fl := "N/A", "N/A"
-					if item.PreflightTPLUSD != nil {
-						pf = fmt.Sprintf("$%d", *item.PreflightTPLUSD)
-					}
-					if item.FlightTPLUSD != nil {
-						fl = fmt.Sprintf("$%d", *item.FlightTPLUSD)
-					}
-					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n",
-						truncate(item.Operator, 25), item.LicenseNumber, mdCell(item.VehicleType),
-						truncate(item.LaunchSite, 20), pf, fl)
+					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+						truncate(item.Operator, 25), item.LicenseNumber, mdCell(item.LicenseType), mdCell(item.VehicleType),
+						truncate(item.LaunchSite, 20), usd(item.PreflightTPLUSD), usd(item.FlightTPLUSD),
+						usd(item.ReentryTPLUSD), usd(item.GovtPropertyUSD), deref(item.EffectiveDate), deref(item.ExpirationDate))
 				}
 				b.WriteString("\n")
 			}
@@ -2487,14 +2551,16 @@ func formatPositionSearch(data json.RawMessage) string {
 	}
 
 	fmt.Fprintf(&b, "Position search results (%d arguments)\n\n", resp.Total)
-	b.WriteString("| Docket | Filer | Stance | Type | Position | Argument | Target party | Page | Conf |\n")
-	b.WriteString("|--------|-------|--------|------|----------|----------|--------------|------|------|\n")
+	b.WriteString("| Filing ID | Filed | Docket | Filer | Stance | Type | Position | Argument | Target party | Page | Conf |\n")
+	b.WriteString("|-----------|-------|--------|-------|--------|------|----------|----------|--------------|------|------|\n")
 	for _, r := range resp.Results {
 		conf := "-"
 		if r.Confidence != nil {
 			conf = strconv.FormatFloat(*r.Confidence, 'f', 2, 64)
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+			r.FilingID,
+			deref(r.FiledDate),
 			deref(r.DocketNumber),
 			truncate(deref(r.Applicant), 30),
 			deref(r.OverallStance),

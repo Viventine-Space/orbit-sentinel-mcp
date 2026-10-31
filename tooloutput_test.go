@@ -171,9 +171,9 @@ func TestRowTablesKeepIDs(t *testing.T) {
 		want []string
 	}{
 		{"sec", secTable, `{"form_type":"8-K","filed_date":"2025-03-01","accession_number":"0001-25-000001","filing_url":"https://sec.gov/x","items":["7.01"],"text_excerpt":"Line one|two","company":"AST SpaceMobile","ticker":"ASTS","cik":"1780312","entity_id":"e-1"}`,
-			[]string{"| 2025-03-01 | 8-K | AST SpaceMobile | ASTS | 1780312 | 7.01 | 0001-25-000001 | https://sec.gov/x | e-1 | Line one\\|two |"}},
-		{"satellite", satelliteTable, `{"name":"STARLINK-1007","norad_cat_id":44713,"cospar_id":"2019-074A","operator_name":"SpaceX","operator_country":"US","orbit_class":"LEO","object_type":"PAYLOAD","orbital_status":"ON_ORBIT","launch_date":"2019-11-11"}`,
-			[]string{"| STARLINK-1007 | 44713 | 2019-074A | SpaceX | US | LEO | PAYLOAD | ON_ORBIT | 2019-11-11 | - |"}},
+			[]string{"| 2025-03-01 | - | 8-K | AST SpaceMobile | ASTS | 1780312 | 7.01 | 0001-25-000001 | https://sec.gov/x | e-1 | Line one\\|two |"}},
+		{"satellite", satelliteTable, `{"name":"STARLINK-1007","norad_cat_id":44713,"cospar_id":"2019-074A","operator_name":"SpaceX","operator_country":"US","orbit_class":"LEO","perigee_km":540.4,"apogee_km":551,"inclination_deg":53.05,"object_type":"PAYLOAD","orbital_status":"ON_ORBIT","launch_date":"2019-11-11","alternate_names":["Starlink 1007"]}`,
+			[]string{"| STARLINK-1007 | 44713 | 2019-074A | SpaceX | US | LEO | 540 | 551 | 53.05 | PAYLOAD | ON_ORBIT | 2019-11-11 | - | - | Starlink 1007 |"}},
 		{"spectrum", spectrumTable, `{"frequency_low_mhz":11700,"frequency_high_mhz":12200,"direction":"downlink","filing_id":"f-1","source_agency":"FCC","source_id":"SAT-LOA-1","filed_date":"2020-05-26","applicant":"Space Exploration Holdings"}`,
 			[]string{"| 11700 | 12200 | - | downlink | - | - | FCC | SAT-LOA-1 | - | 2020-05-26 | Space Exploration Holdings | f-1 |"}},
 		{"ground station", groundStationTable, `{"source":"fcc_ibfs","station_name":"E190123","operator":"SpaceX","state":"HI","latitude":21.3069,"longitude":-157.8583,"frequency_bands":["Ka","Ku"],"distance_km":12.34}`,
@@ -192,8 +192,12 @@ func TestRowTablesKeepIDs(t *testing.T) {
 			t.Errorf("%s: row and header column counts differ", c.name)
 		}
 	}
-	if secTable.row(10, json.RawMessage(`{"text_excerpt":"late"}`)) != "| - | - | - | - | - | - | - | - | - |  |" {
+	if secTable.row(10, json.RawMessage(`{"text_excerpt":"late"}`)) != "| - | - | - | - | - | - | - | - | - | - |  |" {
 		t.Error("sec excerpt must be shown for the first 10 rows only")
+	}
+	long := `{"text_excerpt":"` + strings.Repeat("x", 3000) + `"}`
+	if got := secTableFor(true).row(10, json.RawMessage(long)); !strings.Contains(got, strings.Repeat("x", 3000)) {
+		t.Error("full_excerpt must show every row's whole excerpt")
 	}
 }
 
@@ -217,5 +221,40 @@ func TestToolCallLogsOutputBytes(t *testing.T) {
 	text := callText(t, newTestSession(t, jsonAPI(map[string]any{"results": []any{}, "total": 3})), "search_satellites", nil)
 	if want := fmt.Sprintf(`"bytes":%d`, len(text)); !strings.Contains(buf.String(), want) {
 		t.Fatalf("log %q lacks %s", buf.String(), want)
+	}
+}
+
+// The FAA financial-responsibility table comes from the operator name as well
+// as entity_id (not every FAA order is linked to an entity), and carries the
+// reentry and government-property figures (SpaceBench sweep 10-31 O1, O2).
+func TestBondPortfolioFAAByOperator(t *testing.T) {
+	var faaQuery string
+	cs := newTestSession(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/v1/financial-responsibility":
+			faaQuery = r.URL.RawQuery
+			_, _ = w.Write([]byte(`{"data":[{"operator":"Varda Space Industries","license_number":"RLO-23-001","license_type":"reentry","vehicle_type":"W-Series","launch_site":"UTTR","reentry_tpl_usd":5000000,"govt_property_usd":0,"effective_date":"2024-02-01"}],"pagination":{"page":1,"per_page":100,"total":1,"total_pages":1}}`))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+	out := callText(t, cs, "get_bond_portfolio", map[string]any{"operator": "Varda"})
+	if !strings.Contains(faaQuery, "operator=Varda") {
+		t.Fatalf("financial-responsibility query = %q, want operator=Varda", faaQuery)
+	}
+	for _, want := range []string{"| Reentry TPL | Govt property |", "| reentry |", "| $5000000 | $0 | 2024-02-01 |"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+// search_positions rows carry the filing id and date the footer tells the
+// model to use (SpaceBench sweep 10-31 O11).
+func TestPositionSearchShowsFiling(t *testing.T) {
+	out := formatPositionSearch(json.RawMessage(`{"total":1,"results":[{"filing_id":"f-1","filed_date":"2025-04-02","docket_number":"25-306","argument_text":"x"}]}`))
+	if !strings.Contains(out, "| f-1 | 2025-04-02 | 25-306 |") {
+		t.Errorf("row lacks filing id and date:\n%s", out)
 	}
 }

@@ -154,6 +154,8 @@
   "/api/v1/positions/search": [
     "argument_type",
     "docket",
+    "filed_after",
+    "filed_before",
     "filer",
     "limit",
     "position",
@@ -177,8 +179,10 @@
     "name",
     "norad",
     "object_type",
+    "offset",
     "operator",
     "orbit_class",
+    "sort",
     "status"
   ],
   "/api/v1/screening": [
@@ -198,7 +202,8 @@
     "full_excerpt",
     "limit",
     "since",
-    "ticker"
+    "ticker",
+    "until"
   ],
   "/api/v1/space-station-authorizations": [
     "call_sign",
