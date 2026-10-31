@@ -146,7 +146,7 @@ type searchGroundStationsInput struct {
 	Operator string `json:"operator,omitempty" jsonschema:"Substring match on operator / licensee name"`
 	EntityID string `json:"entity_id,omitempty" jsonschema:"Filter by resolved operator entity UUID (the filing's applicant); fcc or extracted only"`
 	State    string `json:"state,omitempty" jsonschema:"U.S. state or territory code of the station site (e.g. AK, HI); requires source=fcc"`
-	GroupBy  string `json:"group_by,omitempty" jsonschema:"'state' or 'operator': return distinct call-sign counts per state or operator instead of rows (total is the distinct call signs matched); requires source=fcc"`
+	GroupBy  string `json:"group_by,omitempty" jsonschema:"'state' or 'operator': return counts per bucket instead of rows. source=fcc counts distinct call signs (total is the call signs matched); source=acma|ised|ofcom|extracted take 'operator' only and count distinct stations"`
 	Source   string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (default; FCC IBFS earth-station filings through 2025-06-17, one row per call sign, reliable coordinates), 'acma', 'ised' or 'ofcom' (Australian, Canadian or UK earth-station register), or 'extracted' (LLM-extracted from filings, carries band names, coordinates are lossy)"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
@@ -1052,7 +1052,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_ground_stations",
-		Description: "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register, source=extracted the stations extracted from filings. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket. Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint.",
+		Description: "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register, source=extracted the stations extracted from filings. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket (other sources: group_by=operator, station counts). Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchGroundStationsInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"near": input.Near, "radius_km": input.RadiusKM, "name": input.Name,

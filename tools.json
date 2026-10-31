@@ -73,7 +73,7 @@
   },
   {
     "name": "search_ground_stations",
-    "desc": "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register, source=extracted the stations extracted from filings. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket. Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint."
+    "desc": "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register, source=extracted the stations extracted from filings. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket (other sources: group_by=operator, station counts). Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint."
   },
   {
     "name": "search_federal_awards",
