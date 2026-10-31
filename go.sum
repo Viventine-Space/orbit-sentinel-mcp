@@ -1,5 +1,5 @@
-github.com/giantswarm/mcp-oauth v1.7.8 h1:VChPiePp8UnPHjoXxh0Q0RObmDuQe2tHnD5cHwW3CbM=
-github.com/giantswarm/mcp-oauth v1.7.8/go.mod h1:OgfTIeWAOu+QZRgyamO3mA0CjbvmUksnctlbAnfkXpc=
+github.com/giantswarm/mcp-oauth v1.9.3 h1:NYlpXcJCbzFyj3cJEPUXhr+XRsqXphR82qWZStjTiSQ=
+github.com/giantswarm/mcp-oauth v1.9.3/go.mod h1:OgfTIeWAOu+QZRgyamO3mA0CjbvmUksnctlbAnfkXpc=
 github.com/go-jose/go-jose/v4 v4.1.6 h1:sNRkftxFJxwsILiQukqp5z83QBSmntVwmgRY7AqBDO4=
 github.com/go-jose/go-jose/v4 v4.1.6/go.mod h1:x4oUasVrzR7071A4TnHLGSPpNOm2a21K9Kf04k1rs08=
 github.com/golang-jwt/jwt/v5 v5.3.1 h1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=

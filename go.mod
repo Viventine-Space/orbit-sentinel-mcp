@@ -3,7 +3,7 @@ module github.com/viventine-space/orbit-sentinel-mcp
 go 1.26.0
 
 require (
-	github.com/giantswarm/mcp-oauth v1.7.8
+	github.com/giantswarm/mcp-oauth v1.9.3
 	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/joho/godotenv v1.5.1
 	github.com/modelcontextprotocol/go-sdk v1.8.0
