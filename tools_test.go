@@ -316,7 +316,7 @@ func TestFormatFilingListEscapesCells(t *testing.T) {
 	if strings.Count(row, "\n") != 0 {
 		t.Errorf("row contains a newline: %q", row)
 	}
-	if want := "| 1 | f1 | FCC |  | SATELLITE_LICENSE | Application of A\\|B Corp for modification | 2025-07-01 | A\\|B Corp |"; row != want {
+	if want := "| 1 | f1 | FCC |  | SATELLITE_LICENSE | Application of A\\|B Corp for modification | 2025-07-01 | - | A\\|B Corp |"; row != want {
 		t.Errorf("row = %q, want %q", row, want)
 	}
 }

@@ -28,6 +28,9 @@ type searchFilingsInput struct {
 	SourceIDPrefix string `json:"source_id_prefix,omitempty" jsonschema:"File-number prefix: an application type (SES-LIC, SAT-LOA, SES-T/C, LLO), narrowed by year (SES-LIC-2024, VOL-23), a whole file number to include its revisions (VOL-23-129), or a UN document series (ST/SG/SER.E/12, A/AC.105)"`
 	CallSign       string `json:"call_sign,omitempty" jsonschema:"FCC station call sign, e.g. E970199 or ANIK D (case-insensitive): every filing for that earth or space station. A call sign is a station, not a filing id; use this instead of get_filing_detail"`
 	EntityID       string `json:"entity_id,omitempty" jsonschema:"Applicant entity UUID (from search_entities): filings this entity filed"`
+	Administration string `json:"administration,omitempty" jsonschema:"ITU only: notifying administration code, e.g. USA, CHN, F, G, D (case-insensitive)"`
+	BIUAfter       string `json:"brought_into_use_after,omitempty" jsonschema:"ITU only: networks brought into use on or after this date (YYYY-MM-DD). For ITU networks filed_after/filed_before filter the first notification's receipt date instead"`
+	BIUBefore      string `json:"brought_into_use_before,omitempty" jsonschema:"ITU only: networks brought into use on or before this date (YYYY-MM-DD)"`
 	FiledAfter     string `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
 	FiledBefore    string `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`
 	Page           int    `json:"page,omitempty" jsonschema:"Page number (default 1)"`
@@ -251,6 +254,7 @@ type filingListItem struct {
 	Status        string  `json:"status"`
 	FiledDate     *string `json:"filed_date"`
 	ApplicantName *string `json:"applicant_name"`
+	BIUDate       *string `json:"brought_into_use_date"`
 }
 
 type entitySummary struct {
@@ -721,6 +725,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 			"status": input.Status, "docket": input.Docket,
 			"filed_after": input.FiledAfter, "filed_before": input.FiledBefore,
 			"source_id": input.SourceID, "source_id_prefix": input.SourceIDPrefix, "call_sign": input.CallSign, "entity_id": input.EntityID,
+			"administration": input.Administration, "brought_into_use_after": input.BIUAfter, "brought_into_use_before": input.BIUBefore,
 		}
 		if input.CountOnly {
 			params["count_only"] = "true"
@@ -1483,13 +1488,13 @@ func formatFilingList(data json.RawMessage) string {
 		return b.String()
 	}
 
-	b.WriteString("| # | ID | Agency | Source ID | Type | Title | Filed | Applicant |\n")
-	b.WriteString("|---|----|--------|-----------|------|-------|-------|-----------|\n")
+	b.WriteString("| # | ID | Agency | Source ID | Type | Title | Filed | In use | Applicant |\n")
+	b.WriteString("|---|----|--------|-----------|------|-------|-------|--------|-----------|\n")
 	for i, f := range items {
 		num := (p.Page-1)*p.PerPage + i + 1
-		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s | %s | %s | %s | %s |\n",
 			num, f.ID, f.SourceAgency, mdCell(f.SourceID), f.FilingType, truncate(deref(f.Title), 60),
-			deref(f.FiledDate), deref(f.ApplicantName))
+			deref(f.FiledDate), deref(f.BIUDate), deref(f.ApplicantName))
 	}
 	b.WriteString("\n_Source: Orbit Sentinel database. Only cite facts shown above._\n")
 	return b.String()

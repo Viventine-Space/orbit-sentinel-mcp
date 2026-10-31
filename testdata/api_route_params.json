@@ -68,7 +68,10 @@
     "per_page"
   ],
   "/api/v1/export/filings": [
+    "administration",
     "agency",
+    "brought_into_use_after",
+    "brought_into_use_before",
     "call_sign",
     "docket",
     "entity_id",
@@ -94,7 +97,10 @@
     "since"
   ],
   "/api/v1/filings": [
+    "administration",
     "agency",
+    "brought_into_use_after",
+    "brought_into_use_before",
     "call_sign",
     "count_only",
     "docket",
