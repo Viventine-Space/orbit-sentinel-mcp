@@ -53,9 +53,9 @@ homebrew_casks:
     description: "MCP server for Orbit Sentinel — space regulatory filings from FCC, ITU, UNOOSA, FAA-AST"
     hooks:
       post:
-        install: |
-          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/orbit-sentinel-mcp"]
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/orbit-sentinel-mcp"]
           end
 
 # Docker image for MCP clients that run servers via OCI — also the package
