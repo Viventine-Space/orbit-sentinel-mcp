@@ -20,7 +20,7 @@ import (
 
 type searchFilingsInput struct {
 	Query          string `json:"q,omitempty" jsonschema:"Search query for filing titles and summaries"`
-	Agency         string `json:"agency,omitempty" jsonschema:"Filter by source agency, one of: ACMA_AU, CNES_FR, FAA_AST, FCC, ITU, NOAA, NTIA, OFCOM_UK, OTHER, SEC, STATE_AK, STATE_FL, STATE_TX, STATE_VA, UN_OOSA, USPTO"`
+	Agency         string `json:"agency,omitempty" jsonschema:"Filter by source agency, one of: ACMA_AU, CNES_FR, FAA_AST, FCC, ITU, NOAA, NTIA, OFCOM_UK, OTHER, STATE_AK, STATE_FL, STATE_TX, STATE_VA, UN_OOSA, USPTO. SEC filings are not here: use search_sec_filings"`
 	Type           string `json:"type,omitempty" jsonschema:"Filter by filing type, one of: ADVANCE_PUBLICATION, COMMENT, EARTH_STATION_PERMIT, ENVIRONMENTAL_ASSESSMENT, EXPERIMENTAL_LICENSE, EX_PARTE, LAUNCH_LICENSE, MODIFICATION, OPPOSITION, ORBITAL_DEBRIS_PLAN, OTHER, PETITION, REENTRY_LICENSE, REGISTRATION, REMOTE_SENSING_LICENSE, RENEWAL, SATELLITE_LICENSE, SPECIAL_TEMPORARY_AUTH, SPECTRUM_COORDINATION, TRANSFER_OF_CONTROL. For FCC application types such as SES-LIC use source_id_prefix"`
 	Status         string `json:"status,omitempty" jsonschema:"Filing (application) status, one of: ACCEPTED, CANCELLED, COMMENT_PERIOD, DENIED, DISMISSED, EXPIRED, FILED, GRANTED, PUBLIC_NOTICE, UNDER_REVIEW, UNKNOWN, WITHDRAWN"`
 	Docket         string `json:"docket,omitempty" jsonschema:"Filter by docket number, e.g. 22-271 (also accepts 'IB Docket No. 22-271', RM-11348, FAA-2024-2006)"`
@@ -45,7 +45,7 @@ type getFilingInput struct {
 type searchSemanticInput struct {
 	Query         string  `json:"query" jsonschema:"Natural language search query"`
 	Limit         int     `json:"limit,omitempty" jsonschema:"Max results (default 10, max 50)"`
-	Agency        string  `json:"agency,omitempty" jsonschema:"Filter by source agency, one of: ACMA_AU, CNES_FR, FAA_AST, FCC, ITU, NOAA, NTIA, OFCOM_UK, OTHER, SEC, STATE_AK, STATE_FL, STATE_TX, STATE_VA, UN_OOSA, USPTO"`
+	Agency        string  `json:"agency,omitempty" jsonschema:"Filter by source agency, one of: ACMA_AU, CNES_FR, FAA_AST, FCC, ITU, NOAA, NTIA, OFCOM_UK, OTHER, STATE_AK, STATE_FL, STATE_TX, STATE_VA, UN_OOSA, USPTO. SEC filings are not here: use search_sec_filings"`
 	MinSimilarity float64 `json:"min_similarity,omitempty" jsonschema:"Minimum cosine similarity threshold (default 0.5)"`
 	FiledAfter    string  `json:"filed_after,omitempty" jsonschema:"Minimum filed date (YYYY-MM-DD)"`
 	FiledBefore   string  `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`

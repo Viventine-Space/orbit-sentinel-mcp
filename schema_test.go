@@ -10,9 +10,11 @@ import (
 // The enums orbit-sentinel's api/handlers/query.go accepts (validAgencies,
 // validFilingTypes, validStatuses). search_filings used to list 5 agencies,
 // "etc." for types and describe status as orbital (BUGLIST day-3 #20).
+// SEC is accepted by the enum but refused with a 400 pointing at
+// /sec/filings, so the tools do not offer it (space-bench 2.4 #5: 16 such 400s).
 var (
 	apiAgencies = []string{"ACMA_AU", "CNES_FR", "FAA_AST", "FCC", "ITU", "NOAA", "NTIA", "OFCOM_UK", "OTHER",
-		"SEC", "STATE_AK", "STATE_FL", "STATE_TX", "STATE_VA", "UN_OOSA", "USPTO"}
+		"STATE_AK", "STATE_FL", "STATE_TX", "STATE_VA", "UN_OOSA", "USPTO"}
 	apiFilingTypes = []string{"ADVANCE_PUBLICATION", "COMMENT", "EARTH_STATION_PERMIT", "ENVIRONMENTAL_ASSESSMENT",
 		"EXPERIMENTAL_LICENSE", "EX_PARTE", "LAUNCH_LICENSE", "MODIFICATION", "OPPOSITION", "ORBITAL_DEBRIS_PLAN",
 		"OTHER", "PETITION", "REENTRY_LICENSE", "REGISTRATION", "REMOTE_SENSING_LICENSE", "RENEWAL",
@@ -105,5 +107,19 @@ func TestSchemaTextMatchesAPIBehavior(t *testing.T) {
 		if !strings.Contains(gs["source"], src) {
 			t.Errorf("search_ground_stations.source does not list %s: %q", src, gs["source"])
 		}
+	}
+}
+
+func TestAgencyFiltersDoNotOfferSEC(t *testing.T) {
+	props := toolProps(t)
+	for _, tool := range []string{"search_filings", "search_semantic"} {
+		d := props[tool]["agency"]
+		if strings.Contains(d, " SEC,") || strings.Contains(d, ", SEC") || !strings.Contains(d, "search_sec_filings") {
+			t.Errorf("%s.agency should not offer SEC and should point at search_sec_filings: %q", tool, d)
+		}
+	}
+	cs := newTestSession(t, jsonAPI(map[string]any{}))
+	if ins := cs.InitializeResult().Instructions; strings.Contains(ins, ", SEC,") || !strings.Contains(ins, "search_sec_filings") {
+		t.Error("server instructions list SEC as an agency")
 	}
 }
