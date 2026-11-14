@@ -5,7 +5,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /orbit-sentinel-mcp .
 
-FROM alpine:3.21
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates
 COPY --from=build /orbit-sentinel-mcp /usr/local/bin/orbit-sentinel-mcp
 ENTRYPOINT ["/usr/local/bin/orbit-sentinel-mcp"]
