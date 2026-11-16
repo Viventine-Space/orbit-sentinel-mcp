@@ -52,9 +52,17 @@ func newHTTPHandlerWithVerifier(v *oauthVerifier) http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle(prmPath, oauthMetadataHandler())
-	mux.Handle("/mcp", v.middleware(rateLimitUnauth(handler)))
+	mux.Handle("/mcp", withCallerIP(v.middleware(rateLimitUnauth(handler))))
 
 	return mux
+}
+
+// withCallerIP stamps the caller's address on the request context so API
+// calls made for this request carry it.
+func withCallerIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(WithCallerIP(r.Context(), clientIP(r))))
+	})
 }
 
 // bearerToken extracts the token from an Authorization header. Accepts both

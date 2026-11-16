@@ -215,6 +215,75 @@ func TestHTTPForwardsCallerKey(t *testing.T) {
 	}
 }
 
+type headerRoundTripper struct {
+	headers map[string]string
+	base    http.RoundTripper
+}
+
+func (h headerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	for k, v := range h.headers {
+		req.Header.Set(k, v)
+	}
+	return h.base.RoundTrip(req)
+}
+
+// M5: the API sees every MCP request come from this container, so the MCP
+// passes its caller's address on as CF-Connecting-IP. The API's failed-auth
+// budget and audit log then tell MCP users apart.
+func TestHTTPForwardsCallerIP(t *testing.T) {
+	var gotIP string
+	restAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIP = r.Header.Get("CF-Connecting-IP")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"total":42}`))
+	}))
+	defer restAPI.Close()
+
+	t.Setenv("MCP_API_URL", restAPI.URL)
+	mcpSrv := httptest.NewServer(newHTTPHandler())
+	defer mcpSrv.Close()
+
+	callFrom := func(t *testing.T, headers map[string]string) {
+		t.Helper()
+		gotIP = ""
+		transport := &mcp.StreamableClientTransport{
+			Endpoint:             mcpSrv.URL + "/mcp",
+			HTTPClient:           &http.Client{Transport: headerRoundTripper{headers: headers, base: http.DefaultTransport}},
+			DisableStandaloneSSE: true,
+		}
+		client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil)
+		session, err := client.Connect(context.Background(), transport, nil)
+		if err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		defer session.Close()
+		res, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+			Name:      "search_filings",
+			Arguments: map[string]any{"count_only": true},
+		})
+		if err != nil {
+			t.Fatalf("tools/call: %v", err)
+		}
+		if res.IsError {
+			t.Fatalf("tool error: %+v", res.Content)
+		}
+	}
+
+	t.Run("behind Cloudflare", func(t *testing.T) {
+		callFrom(t, map[string]string{"Authorization": "Bearer osk_caller", "CF-Connecting-IP": "203.0.113.50"})
+		if gotIP != "203.0.113.50" {
+			t.Fatalf("REST CF-Connecting-IP = %q, want the caller's 203.0.113.50", gotIP)
+		}
+	})
+
+	t.Run("direct", func(t *testing.T) {
+		callFrom(t, map[string]string{"Authorization": "Bearer osk_caller"})
+		if gotIP != "127.0.0.1" {
+			t.Fatalf("REST CF-Connecting-IP = %q, want the socket peer 127.0.0.1", gotIP)
+		}
+	})
+}
+
 func TestHTTPConcurrentKeysIsolated(t *testing.T) {
 	restAPI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer key-")

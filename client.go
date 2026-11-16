@@ -70,6 +70,23 @@ func apiKeyFromContext(ctx context.Context) string {
 	return v
 }
 
+// callerIPContextKey is the key under which the MCP caller's address is
+// stashed on the context in HTTP mode.
+type callerIPContextKey struct{}
+
+// WithCallerIP returns a context carrying the MCP caller's address. The API
+// sees every MCP request come from this container, so the address is passed
+// on as CF-Connecting-IP, which the API reads for its per-IP failed-auth
+// budget and its audit log (M5).
+func WithCallerIP(ctx context.Context, ip string) context.Context {
+	return context.WithValue(ctx, callerIPContextKey{}, ip)
+}
+
+func callerIPFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(callerIPContextKey{}).(string)
+	return v
+}
+
 func (c *APIClient) doGet(ctx context.Context, path string) (json.RawMessage, error) {
 	return c.do(ctx, func() (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
@@ -103,6 +120,9 @@ func (c *APIClient) applyHeaders(req *http.Request, path string, ctx context.Con
 	}
 	if tool := mcpToolFromContext(ctx); tool != "" {
 		req.Header.Set("X-MCP-Tool", tool)
+	}
+	if ip := callerIPFromContext(ctx); ip != "" {
+		req.Header.Set("CF-Connecting-IP", ip)
 	}
 }
 
