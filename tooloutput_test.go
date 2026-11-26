@@ -175,7 +175,7 @@ func TestRowTablesKeepIDs(t *testing.T) {
 		{"satellite", satelliteTable, `{"name":"STARLINK-1007","norad_cat_id":44713,"cospar_id":"2019-074A","operator_name":"SpaceX","operator_country":"US","orbit_class":"LEO","perigee_km":540.4,"apogee_km":551,"inclination_deg":53.05,"object_type":"PAYLOAD","orbital_status":"ON_ORBIT","launch_date":"2019-11-11","alternate_names":["Starlink 1007"]}`,
 			[]string{"| STARLINK-1007 | 44713 | 2019-074A | SpaceX | US | LEO | 540 | 551 | 53.05 | PAYLOAD | ON_ORBIT | 2019-11-11 | - | - | Starlink 1007 |"}},
 		{"spectrum", spectrumTable, `{"frequency_low_mhz":11700,"frequency_high_mhz":12200,"direction":"downlink","filing_id":"f-1","source_agency":"FCC","source_id":"SAT-LOA-1","filed_date":"2020-05-26","applicant":"Space Exploration Holdings"}`,
-			[]string{"| 11700 | 12200 | - | downlink | - | - | FCC | SAT-LOA-1 | - | 2020-05-26 | Space Exploration Holdings | f-1 |"}},
+			[]string{"| 11700 | 12200 | downlink | - | - | FCC | SAT-LOA-1 | - | 2020-05-26 | Space Exploration Holdings | f-1 |"}},
 		{"ground station", groundStationTable, `{"source":"fcc_ibfs","station_name":"E190123","operator":"SpaceX","state":"HI","latitude":21.3069,"longitude":-157.8583,"frequency_bands":["Ka","Ku"],"distance_km":12.34}`,
 			[]string{"| fcc_ibfs | E190123 | SpaceX | HI | 21.3069 | -157.8583 | 12.3 | Ka,Ku | - | - |"}},
 		{"space station", spaceStationTable, `{"call_sign":"S2357","system_name":"Lightspeed","operator_name":"Telesat","licensing_admin":"Canada","is_ngso":true,"frequencies":"17.8-20.2 GHz|27.5-30 GHz","granted":true,"foreign":true,"us_market_access":true,"entity_id":"e-1"}`,
