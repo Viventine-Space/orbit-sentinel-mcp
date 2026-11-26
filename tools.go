@@ -81,10 +81,10 @@ type getEntityProfileInput struct {
 type searchSpectrumInput struct {
 	FreqLowMHz   string `json:"freq_low_mhz,omitempty" jsonschema:"Lower bound of the band to search, in MHz"`
 	FreqHighMHz  string `json:"freq_high_mhz,omitempty" jsonschema:"Upper bound of the band to search, in MHz"`
-	Agency       string `json:"agency,omitempty" jsonschema:"Filter by source agency (FCC, ITU, ...)"`
-	Direction    string `json:"direction,omitempty" jsonschema:"Filter by direction (e.g. uplink, downlink)"`
-	Polarization string `json:"polarization,omitempty" jsonschema:"Filter by polarization"`
-	Holder       string `json:"holder,omitempty" jsonschema:"Substring match on the allocation holder (applicant entity)"`
+	Agency       string `json:"agency,omitempty" jsonschema:"Filter by source agency; only FCC has frequency records today"`
+	Direction    string `json:"direction,omitempty" jsonschema:"uplink (the ground station transmits) or downlink (it receives)"`
+	Polarization string `json:"polarization,omitempty" jsonschema:"FCC polarization code (e.g. L, R, H, V)"`
+	Holder       string `json:"holder,omitempty" jsonschema:"Substring match on the filing's applicant (entity name)"`
 	Limit        int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
@@ -162,7 +162,7 @@ type searchGroundStationsInput struct {
 	FreqMaxMHz  string `json:"freq_max_mhz,omitempty" jsonschema:"Upper frequency bound in MHz (see freq_min_mhz)"`
 	CountOnly   bool   `json:"count_only,omitempty" jsonschema:"Return only total (the full match count), no rows. Use for any 'how many' question"`
 	GroupBy     string `json:"group_by,omitempty" jsonschema:"'state' or 'operator': return counts per bucket instead of rows. source=fcc counts distinct call signs (total is the call signs matched); source=acma|ised|ofcom|extracted take 'operator' only and count distinct stations"`
-	Source      string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (default; FCC IBFS earth-station filings through 2025-06-17, one row per call sign, reliable coordinates), 'acma', 'ised' or 'ofcom' (Australian, Canadian or UK earth-station register), or 'extracted' (LLM-extracted from filings, carries band names, coordinates are lossy)"`
+	Source      string `json:"source,omitempty" jsonschema:"Dataset: 'fcc' (default; FCC IBFS earth-station filings through 2025-06-17, one row per call sign, reliable coordinates), or 'acma', 'ised' or 'ofcom' (Australian, Canadian or UK earth-station register)"`
 	Limit       int    `json:"limit,omitempty" jsonschema:"Max rows returned (default 50, max 500). The response total is the full match count regardless of limit; rows cannot be paged, so answer counting questions from total. Output keeps the rows that fit in about 40 KB and says how many it left out"`
 }
 
@@ -265,13 +265,12 @@ type entitySummary struct {
 }
 
 type spectrumItem struct {
-	BandDesignation *string  `json:"band_designation"`
-	FrequencyLow    *float64 `json:"frequency_low_mhz"`
-	FrequencyHigh   *float64 `json:"frequency_high_mhz"`
-	Direction       *string  `json:"direction"`
-	EIRP            *float64 `json:"eirp_dbw"`
-	Polarization    *string  `json:"polarization"`
-	Confidence      *string  `json:"confidence"`
+	FrequencyLow  *float64 `json:"frequency_low_mhz"`
+	FrequencyHigh *float64 `json:"frequency_high_mhz"`
+	Direction     *string  `json:"direction"`
+	Polarization  *string  `json:"polarization"`
+	Emission      *string  `json:"emission"`
+	Source        *string  `json:"source"`
 }
 
 type orbitalItem struct {
@@ -290,7 +289,7 @@ type groundStationItem struct {
 	Latitude        *float64 `json:"latitude"`
 	Longitude       *float64 `json:"longitude"`
 	AntennaDiameter *float64 `json:"antenna_diameter_m"`
-	Confidence      *string  `json:"confidence"`
+	Source          *string  `json:"source"`
 }
 
 type signalItem struct {
@@ -333,6 +332,7 @@ type filingDetail struct {
 	FilingType       string              `json:"filing_type"`
 	Title            *string             `json:"title"`
 	Summary          *string             `json:"summary"`
+	SummaryLabel     *string             `json:"summary_label"`
 	Status           string              `json:"status"`
 	FiledDate        *string             `json:"filed_date"`
 	EffectiveDate    *string             `json:"effective_date"`
@@ -974,7 +974,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_spectrum",
-		Description: "Find which entities hold a frequency band. Given a range in MHz, returns spectrum allocations overlapping it, joined to the source filing and applicant — e.g. 'who is allocated 11700-12200 MHz downlink?'. Filter by agency, direction, polarization, or holder name.",
+		Description: "Find which FCC filings use a frequency band, from the FCC's own record (IBFS, through 2025-06-17). Given a range in MHz, returns the frequency ranges in FCC filings that overlap it, one row per filing and range, joined to the applicant — e.g. 'which earth stations receive 11700-12200 MHz?'. Filter by direction (uplink or downlink), FCC polarization code, or holder name. Filings after June 2025 are not covered yet.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchSpectrumInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"freq_low_mhz": input.FreqLowMHz, "freq_high_mhz": input.FreqHighMHz,
@@ -1083,7 +1083,7 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "search_ground_stations",
-		Description: "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register, source=extracted the stations extracted from filings. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket (other sources: group_by=operator, station counts). Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint.",
+		Description: "Search ground / earth stations by name, frequency band, operator, entity, U.S. state, or geographic proximity (near='lat,lon' within radius_km, ordered by great-circle distance). Defaults to the FCC IBFS earth-station archive (one row per call sign, through 2025-06-17); source=acma|ised|ofcom reads a national register. Each result is labeled with its source. group_by=state|operator returns call-sign counts per bucket (other sources: group_by=operator, station counts). Use for 'earth stations within 200km of 38.9,-77.0', 'how many V-band earth stations per state', or an operator's gateway footprint.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchGroundStationsInput) (*mcp.CallToolResult, any, error) {
 		params := map[string]string{
 			"near": input.Near, "radius_km": input.RadiusKM, "name": input.Name,
@@ -1369,27 +1369,26 @@ var satelliteTable = &rowTable{
 }
 
 var spectrumTable = &rowTable{
-	header: "| Low MHz | High MHz | Band | Direction | Polarization | EIRP dBW | Agency | Source ID | Type | Filed | Applicant | Filing ID |\n" +
-		"|---|---|---|---|---|---|---|---|---|---|---|---|\n",
+	header: "| Low MHz | High MHz | Direction | Polarization | Emission | Agency | Source ID | Type | Filed | Applicant | Filing ID |\n" +
+		"|---|---|---|---|---|---|---|---|---|---|---|\n",
 	row: func(_ int, raw json.RawMessage) string {
 		var r struct {
-			BandDesignation *string  `json:"band_designation"`
-			FreqLowMHz      *float64 `json:"frequency_low_mhz"`
-			FreqHighMHz     *float64 `json:"frequency_high_mhz"`
-			Direction       *string  `json:"direction"`
-			Polarization    *string  `json:"polarization"`
-			EIRPdBW         *float64 `json:"eirp_dbw"`
-			FilingID        *string  `json:"filing_id"`
-			SourceAgency    *string  `json:"source_agency"`
-			SourceID        *string  `json:"source_id"`
-			FilingType      *string  `json:"filing_type"`
-			FiledDate       *string  `json:"filed_date"`
-			Applicant       *string  `json:"applicant"`
+			FreqLowMHz   *float64 `json:"frequency_low_mhz"`
+			FreqHighMHz  *float64 `json:"frequency_high_mhz"`
+			Direction    *string  `json:"direction"`
+			Polarization *string  `json:"polarization"`
+			Emission     *string  `json:"emission"`
+			FilingID     *string  `json:"filing_id"`
+			SourceAgency *string  `json:"source_agency"`
+			SourceID     *string  `json:"source_id"`
+			FilingType   *string  `json:"filing_type"`
+			FiledDate    *string  `json:"filed_date"`
+			Applicant    *string  `json:"applicant"`
 		}
 		_ = json.Unmarshal(raw, &r)
-		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
-			derefFloat(r.FreqLowMHz, -1), derefFloat(r.FreqHighMHz, -1), deref(r.BandDesignation), deref(r.Direction),
-			deref(r.Polarization), derefFloat(r.EIRPdBW, 1), deref(r.SourceAgency), deref(r.SourceID),
+		return fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |",
+			derefFloat(r.FreqLowMHz, -1), derefFloat(r.FreqHighMHz, -1), deref(r.Direction),
+			deref(r.Polarization), deref(r.Emission), deref(r.SourceAgency), deref(r.SourceID),
 			deref(r.FilingType), deref(r.FiledDate), deref(r.Applicant), deref(r.FilingID))
 	},
 }
@@ -1525,18 +1524,17 @@ func formatFiling(data json.RawMessage) string {
 	if f.SourceURL != nil {
 		fmt.Fprintf(&b, "**Source:** %s\n", *f.SourceURL)
 	}
-	fmt.Fprintf(&b, "**Extraction:** %s\n", f.ExtractionStatus)
-	if f.ExtractionStatus != "completed" {
-		fmt.Fprintf(&b, "**Data Quality:** Extraction status is %s — extracted fields may be incomplete or absent.\n", f.ExtractionStatus)
-	}
-
 	if f.Applicant != nil {
 		fmt.Fprintf(&b, "\n## Applicant\n%s (%s, %s)\n",
 			f.Applicant.CanonicalName, deref(f.Applicant.EntityType), deref(f.Applicant.Country))
 	}
 
 	if f.Summary != nil && *f.Summary != "" {
-		fmt.Fprintf(&b, "\n## Summary\n%s\n", *f.Summary)
+		b.WriteString("\n## Summary\n")
+		if f.SummaryLabel != nil && *f.SummaryLabel != "" {
+			fmt.Fprintf(&b, "_%s._\n\n", strings.TrimSuffix(*f.SummaryLabel, "."))
+		}
+		fmt.Fprintf(&b, "%s\n", *f.Summary)
 	}
 
 	if f.LongForm != nil && f.LongForm.ExecutiveSummary != "" {
@@ -1597,12 +1595,12 @@ func formatFiling(data json.RawMessage) string {
 
 	if len(f.SpectrumData) > 0 {
 		b.WriteString("\n## Spectrum Data\n")
-		b.WriteString("| Band | Low (MHz) | High (MHz) | Direction | EIRP (dBW) | Polarization | Confidence |\n")
-		b.WriteString("|------|-----------|------------|-----------|------------|--------------|------------|\n")
+		b.WriteString("| Low (MHz) | High (MHz) | Direction | Polarization | Emission | Source |\n")
+		b.WriteString("|-----------|------------|-----------|--------------|----------|--------|\n")
 		for _, s := range f.SpectrumData {
-			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n",
-				deref(s.BandDesignation), derefFloat(s.FrequencyLow, 1), derefFloat(s.FrequencyHigh, 1),
-				deref(s.Direction), derefFloat(s.EIRP, 1), deref(s.Polarization), deref(s.Confidence))
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n",
+				derefFloat(s.FrequencyLow, 1), derefFloat(s.FrequencyHigh, 1),
+				deref(s.Direction), deref(s.Polarization), deref(s.Emission), deref(s.Source))
 		}
 	}
 
@@ -1620,44 +1618,16 @@ func formatFiling(data json.RawMessage) string {
 
 	if len(f.GroundStations) > 0 {
 		b.WriteString("\n## Ground Stations\n")
-		b.WriteString("| Name | Latitude | Longitude | Antenna (m) | Confidence |\n")
-		b.WriteString("|------|----------|-----------|-------------|------------|\n")
+		b.WriteString("| Name | Latitude | Longitude | Largest antenna (m) | Source |\n")
+		b.WriteString("|------|----------|-----------|---------------------|--------|\n")
 		for _, g := range f.GroundStations {
 			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n",
 				deref(g.StationName), derefFloat(g.Latitude, 4), derefFloat(g.Longitude, 4),
-				derefFloat(g.AntennaDiameter, 1), deref(g.Confidence))
+				derefFloat(g.AntennaDiameter, 1), deref(g.Source))
 		}
 	}
-
-	// Check for low/medium confidence in extracted technical data
-	hasLowConf := false
-	for _, s := range f.SpectrumData {
-		if s.Confidence != nil && (*s.Confidence == "LOW" || *s.Confidence == "MEDIUM") {
-			hasLowConf = true
-			break
-		}
-	}
-	if !hasLowConf {
-		for _, o := range f.OrbitalParams {
-			if o.Confidence != nil && (*o.Confidence == "LOW" || *o.Confidence == "MEDIUM") {
-				hasLowConf = true
-				break
-			}
-		}
-	}
-	if !hasLowConf {
-		for _, g := range f.GroundStations {
-			if g.Confidence != nil && (*g.Confidence == "LOW" || *g.Confidence == "MEDIUM") {
-				hasLowConf = true
-				break
-			}
-		}
-	}
-	if hasLowConf {
-		b.WriteString("\n*Note: Some rows above have LOW or MEDIUM confidence — verify against the source document before citing.*\n")
-	}
-	if f.SourceURL != nil && (len(f.SpectrumData) > 0 || len(f.OrbitalParams) > 0 || len(f.GroundStations) > 0) {
-		fmt.Fprintf(&b, "\n**Source document:** %s — verify extracted parameters against this source.\n", *f.SourceURL)
+	if len(f.SpectrumData) > 0 || len(f.GroundStations) > 0 {
+		b.WriteString("\n_Spectrum and sites are the FCC's own record of this filing (IBFS, which ends in June 2025)._\n")
 	}
 
 	if len(f.Signals) > 0 {

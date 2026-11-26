@@ -175,7 +175,7 @@ func TestRowTablesKeepIDs(t *testing.T) {
 		{"satellite", satelliteTable, `{"name":"STARLINK-1007","norad_cat_id":44713,"cospar_id":"2019-074A","operator_name":"SpaceX","operator_country":"US","orbit_class":"LEO","perigee_km":540.4,"apogee_km":551,"inclination_deg":53.05,"object_type":"PAYLOAD","orbital_status":"ON_ORBIT","launch_date":"2019-11-11","alternate_names":["Starlink 1007"]}`,
 			[]string{"| STARLINK-1007 | 44713 | 2019-074A | SpaceX | US | LEO | 540 | 551 | 53.05 | PAYLOAD | ON_ORBIT | 2019-11-11 | - | - | Starlink 1007 |"}},
 		{"spectrum", spectrumTable, `{"frequency_low_mhz":11700,"frequency_high_mhz":12200,"direction":"downlink","filing_id":"f-1","source_agency":"FCC","source_id":"SAT-LOA-1","filed_date":"2020-05-26","applicant":"Space Exploration Holdings"}`,
-			[]string{"| 11700 | 12200 | - | downlink | - | - | FCC | SAT-LOA-1 | - | 2020-05-26 | Space Exploration Holdings | f-1 |"}},
+			[]string{"| 11700 | 12200 | downlink | - | - | FCC | SAT-LOA-1 | - | 2020-05-26 | Space Exploration Holdings | f-1 |"}},
 		{"ground station", groundStationTable, `{"source":"fcc_ibfs","station_name":"E190123","operator":"SpaceX","state":"HI","latitude":21.3069,"longitude":-157.8583,"frequency_bands":["Ka","Ku"],"distance_km":12.34}`,
 			[]string{"| fcc_ibfs | E190123 | SpaceX | HI | 21.3069 | -157.8583 | 12.3 | Ka,Ku | - | - |"}},
 		{"space station", spaceStationTable, `{"call_sign":"S2357","system_name":"Lightspeed","operator_name":"Telesat","licensing_admin":"Canada","is_ngso":true,"frequencies":"17.8-20.2 GHz|27.5-30 GHz","granted":true,"foreign":true,"us_market_access":true,"entity_id":"e-1"}`,
@@ -256,5 +256,36 @@ func TestPositionSearchShowsFiling(t *testing.T) {
 	out := formatPositionSearch(json.RawMessage(`{"total":1,"results":[{"filing_id":"f-1","filed_date":"2025-04-02","docket_number":"25-306","argument_text":"x"}]}`))
 	if !strings.Contains(out, "| f-1 | 2025-04-02 | 25-306 |") {
 		t.Errorf("row lacks filing id and date:\n%s", out)
+	}
+}
+
+// The filing detail shows the summary's label and the source of each spectrum
+// and site row, and no longer talks about extraction or confidence.
+func TestFormatFilingShowsSourceAndSummaryLabel(t *testing.T) {
+	out := formatFiling(json.RawMessage(`{
+		"id": "f1", "source_agency": "FCC", "source_id": "SES-REG-20180910-04288",
+		"filing_type": "EARTH_STATION_PERMIT", "status": "GRANTED", "extraction_status": "completed",
+		"summary": "A receive-only registration.",
+		"summary_label": "Written by software; not checked against the source",
+		"spectrum_data": [{"frequency_low_mhz": 3700, "frequency_high_mhz": 4200, "direction": "downlink",
+			"polarization": "Z", "emission": "36M0G7W", "eirp_dbw": null, "confidence": null, "source": "FCC IBFS record"}],
+		"ground_stations": [{"station_name": "Goochland, VA", "latitude": 37.676283, "longitude": -77.887939,
+			"antenna_diameter_m": 3.7, "confidence": null, "source": "FCC IBFS record"}],
+		"orbital_parameters": [], "signals": []
+	}`))
+	for _, want := range []string{
+		"_Written by software; not checked against the source._",
+		"| 3700.0 | 4200.0 | downlink | Z | 36M0G7W | FCC IBFS record |",
+		"| Goochland, VA | 37.6763 | -77.8879 | 3.7 | FCC IBFS record |",
+		"the FCC's own record of this filing",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	for _, bad := range []string{"Confidence", "Extraction", "extracted", "Orbital Parameters"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("output contains %q:\n%s", bad, out)
+		}
 	}
 }
