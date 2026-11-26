@@ -265,13 +265,12 @@ type entitySummary struct {
 }
 
 type spectrumItem struct {
-	BandDesignation *string  `json:"band_designation"`
-	FrequencyLow    *float64 `json:"frequency_low_mhz"`
-	FrequencyHigh   *float64 `json:"frequency_high_mhz"`
-	Direction       *string  `json:"direction"`
-	EIRP            *float64 `json:"eirp_dbw"`
-	Polarization    *string  `json:"polarization"`
-	Confidence      *string  `json:"confidence"`
+	FrequencyLow  *float64 `json:"frequency_low_mhz"`
+	FrequencyHigh *float64 `json:"frequency_high_mhz"`
+	Direction     *string  `json:"direction"`
+	Polarization  *string  `json:"polarization"`
+	Emission      *string  `json:"emission"`
+	Source        *string  `json:"source"`
 }
 
 type orbitalItem struct {
@@ -290,7 +289,7 @@ type groundStationItem struct {
 	Latitude        *float64 `json:"latitude"`
 	Longitude       *float64 `json:"longitude"`
 	AntennaDiameter *float64 `json:"antenna_diameter_m"`
-	Confidence      *string  `json:"confidence"`
+	Source          *string  `json:"source"`
 }
 
 type signalItem struct {
@@ -333,6 +332,7 @@ type filingDetail struct {
 	FilingType       string              `json:"filing_type"`
 	Title            *string             `json:"title"`
 	Summary          *string             `json:"summary"`
+	SummaryLabel     *string             `json:"summary_label"`
 	Status           string              `json:"status"`
 	FiledDate        *string             `json:"filed_date"`
 	EffectiveDate    *string             `json:"effective_date"`
@@ -1525,18 +1525,17 @@ func formatFiling(data json.RawMessage) string {
 	if f.SourceURL != nil {
 		fmt.Fprintf(&b, "**Source:** %s\n", *f.SourceURL)
 	}
-	fmt.Fprintf(&b, "**Extraction:** %s\n", f.ExtractionStatus)
-	if f.ExtractionStatus != "completed" {
-		fmt.Fprintf(&b, "**Data Quality:** Extraction status is %s — extracted fields may be incomplete or absent.\n", f.ExtractionStatus)
-	}
-
 	if f.Applicant != nil {
 		fmt.Fprintf(&b, "\n## Applicant\n%s (%s, %s)\n",
 			f.Applicant.CanonicalName, deref(f.Applicant.EntityType), deref(f.Applicant.Country))
 	}
 
 	if f.Summary != nil && *f.Summary != "" {
-		fmt.Fprintf(&b, "\n## Summary\n%s\n", *f.Summary)
+		b.WriteString("\n## Summary\n")
+		if f.SummaryLabel != nil && *f.SummaryLabel != "" {
+			fmt.Fprintf(&b, "_%s._\n\n", strings.TrimSuffix(*f.SummaryLabel, "."))
+		}
+		fmt.Fprintf(&b, "%s\n", *f.Summary)
 	}
 
 	if f.LongForm != nil && f.LongForm.ExecutiveSummary != "" {
@@ -1597,12 +1596,12 @@ func formatFiling(data json.RawMessage) string {
 
 	if len(f.SpectrumData) > 0 {
 		b.WriteString("\n## Spectrum Data\n")
-		b.WriteString("| Band | Low (MHz) | High (MHz) | Direction | EIRP (dBW) | Polarization | Confidence |\n")
-		b.WriteString("|------|-----------|------------|-----------|------------|--------------|------------|\n")
+		b.WriteString("| Low (MHz) | High (MHz) | Direction | Polarization | Emission | Source |\n")
+		b.WriteString("|-----------|------------|-----------|--------------|----------|--------|\n")
 		for _, s := range f.SpectrumData {
-			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n",
-				deref(s.BandDesignation), derefFloat(s.FrequencyLow, 1), derefFloat(s.FrequencyHigh, 1),
-				deref(s.Direction), derefFloat(s.EIRP, 1), deref(s.Polarization), deref(s.Confidence))
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n",
+				derefFloat(s.FrequencyLow, 1), derefFloat(s.FrequencyHigh, 1),
+				deref(s.Direction), deref(s.Polarization), deref(s.Emission), deref(s.Source))
 		}
 	}
 
@@ -1620,44 +1619,16 @@ func formatFiling(data json.RawMessage) string {
 
 	if len(f.GroundStations) > 0 {
 		b.WriteString("\n## Ground Stations\n")
-		b.WriteString("| Name | Latitude | Longitude | Antenna (m) | Confidence |\n")
-		b.WriteString("|------|----------|-----------|-------------|------------|\n")
+		b.WriteString("| Name | Latitude | Longitude | Largest antenna (m) | Source |\n")
+		b.WriteString("|------|----------|-----------|---------------------|--------|\n")
 		for _, g := range f.GroundStations {
 			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n",
 				deref(g.StationName), derefFloat(g.Latitude, 4), derefFloat(g.Longitude, 4),
-				derefFloat(g.AntennaDiameter, 1), deref(g.Confidence))
+				derefFloat(g.AntennaDiameter, 1), deref(g.Source))
 		}
 	}
-
-	// Check for low/medium confidence in extracted technical data
-	hasLowConf := false
-	for _, s := range f.SpectrumData {
-		if s.Confidence != nil && (*s.Confidence == "LOW" || *s.Confidence == "MEDIUM") {
-			hasLowConf = true
-			break
-		}
-	}
-	if !hasLowConf {
-		for _, o := range f.OrbitalParams {
-			if o.Confidence != nil && (*o.Confidence == "LOW" || *o.Confidence == "MEDIUM") {
-				hasLowConf = true
-				break
-			}
-		}
-	}
-	if !hasLowConf {
-		for _, g := range f.GroundStations {
-			if g.Confidence != nil && (*g.Confidence == "LOW" || *g.Confidence == "MEDIUM") {
-				hasLowConf = true
-				break
-			}
-		}
-	}
-	if hasLowConf {
-		b.WriteString("\n*Note: Some rows above have LOW or MEDIUM confidence — verify against the source document before citing.*\n")
-	}
-	if f.SourceURL != nil && (len(f.SpectrumData) > 0 || len(f.OrbitalParams) > 0 || len(f.GroundStations) > 0) {
-		fmt.Fprintf(&b, "\n**Source document:** %s — verify extracted parameters against this source.\n", *f.SourceURL)
+	if len(f.SpectrumData) > 0 || len(f.GroundStations) > 0 {
+		b.WriteString("\n_Spectrum and sites are the FCC's own record of this filing (IBFS, which ends in June 2025)._\n")
 	}
 
 	if len(f.Signals) > 0 {

@@ -258,3 +258,34 @@ func TestPositionSearchShowsFiling(t *testing.T) {
 		t.Errorf("row lacks filing id and date:\n%s", out)
 	}
 }
+
+// The filing detail shows the summary's label and the source of each spectrum
+// and site row, and no longer talks about extraction or confidence.
+func TestFormatFilingShowsSourceAndSummaryLabel(t *testing.T) {
+	out := formatFiling(json.RawMessage(`{
+		"id": "f1", "source_agency": "FCC", "source_id": "SES-REG-20180910-04288",
+		"filing_type": "EARTH_STATION_PERMIT", "status": "GRANTED", "extraction_status": "completed",
+		"summary": "A receive-only registration.",
+		"summary_label": "Written by software; not checked against the source",
+		"spectrum_data": [{"frequency_low_mhz": 3700, "frequency_high_mhz": 4200, "direction": "downlink",
+			"polarization": "Z", "emission": "36M0G7W", "eirp_dbw": null, "confidence": null, "source": "FCC IBFS record"}],
+		"ground_stations": [{"station_name": "Goochland, VA", "latitude": 37.676283, "longitude": -77.887939,
+			"antenna_diameter_m": 3.7, "confidence": null, "source": "FCC IBFS record"}],
+		"orbital_parameters": [], "signals": []
+	}`))
+	for _, want := range []string{
+		"_Written by software; not checked against the source._",
+		"| 3700.0 | 4200.0 | downlink | Z | 36M0G7W | FCC IBFS record |",
+		"| Goochland, VA | 37.6763 | -77.8879 | 3.7 | FCC IBFS record |",
+		"the FCC's own record of this filing",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	for _, bad := range []string{"Confidence", "Extraction", "extracted", "Orbital Parameters"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("output contains %q:\n%s", bad, out)
+		}
+	}
+}
