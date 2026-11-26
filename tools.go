@@ -51,19 +51,6 @@ type searchSemanticInput struct {
 	FiledBefore   string  `json:"filed_before,omitempty" jsonschema:"Maximum filed date (YYYY-MM-DD)"`
 }
 
-type searchPositionsInput struct {
-	Docket       string `json:"docket,omitempty" jsonschema:"Filter by docket number, e.g. 25-306 (also accepts 'IB Docket No. 25-306', RM-11348, FAA-2024-2006)"`
-	FiledAfter   string `json:"filed_after,omitempty" jsonschema:"Only arguments from filings filed on/after this date (YYYY-MM-DD)"`
-	FiledBefore  string `json:"filed_before,omitempty" jsonschema:"Only arguments from filings filed on/before this date (YYYY-MM-DD)"`
-	Stance       string `json:"stance,omitempty" jsonschema:"Filter by overall stance: support|oppose|qualified_support|qualified_opposition|informational"`
-	ArgumentType string `json:"argument_type,omitempty" jsonschema:"Filter by argument type: legal|technical|economic|policy|procedural"`
-	Position     string `json:"position,omitempty" jsonschema:"Filter by per-argument position: support|oppose|modify|neutral"`
-	TargetParty  string `json:"target_party,omitempty" jsonschema:"Substring match on target_party (the entity being addressed or opposed)"`
-	Filer        string `json:"filer,omitempty" jsonschema:"Substring match on the filing party's canonical name"`
-	Query        string `json:"q,omitempty" jsonschema:"Words to find in argument text or executive summaries: every word must appear (in any order), not as an exact phrase"`
-	Limit        int    `json:"limit,omitempty" jsonschema:"Max results (default 25, max 200)"`
-}
-
 type searchEntitiesInput struct {
 	Query   string `json:"q,omitempty" jsonschema:"Fuzzy search on entity name and aliases"`
 	Type    string `json:"type,omitempty" jsonschema:"Filter by entity type, one of: company, individual, government, corporation"`
@@ -349,34 +336,6 @@ type filingDetail struct {
 	OrbitalParams    []orbitalItem       `json:"orbital_parameters"`
 	GroundStations   []groundStationItem `json:"ground_stations"`
 	Signals          []signalItem        `json:"signals"`
-	LongForm         *longFormItem       `json:"long_form,omitempty"`
-	Position         *positionItem       `json:"position,omitempty"`
-	Arguments        []argumentItem      `json:"arguments,omitempty"`
-}
-
-type longFormItem struct {
-	ExecutiveSummary string `json:"executive_summary"`
-	WordCount        *int   `json:"word_count"`
-	ReadingTimeMin   *int   `json:"reading_time_min"`
-}
-
-type positionItem struct {
-	OverallStance         *string  `json:"overall_stance"`
-	Tone                  *string  `json:"tone"`
-	PrimaryRecommendation *string  `json:"primary_recommendation"`
-	RuleCitations         []string `json:"rule_citations"`
-	Confidence            *float64 `json:"confidence"`
-}
-
-type argumentItem struct {
-	ArgumentType *string  `json:"argument_type"`
-	Position     *string  `json:"position"`
-	ArgumentText string   `json:"argument_text"`
-	Target       *string  `json:"target"`
-	TargetParty  *string  `json:"target_party"`
-	SourceQuote  *string  `json:"source_quote"`
-	SourcePage   *int     `json:"source_page"`
-	Confidence   *float64 `json:"confidence"`
 }
 
 type entityListItem struct {
@@ -756,38 +715,13 @@ func registerTools(s *mcp.Server, client *APIClient) {
 
 	wrapAddTool(s, &mcp.Tool{
 		Name:        "get_filing_detail",
-		Description: "Get full details of a specific regulatory filing, by UUID or agency file number, including spectrum data, orbital parameters, ground stations, signals, related filings, attachments, and (for policy filings) executive summary, overall stance, and structured arguments.",
+		Description: "Get full details of a specific regulatory filing, by UUID or agency file number: dates, parties, documents, related filings, and for FCC earth-station filings the spectrum and sites from the FCC's own record (through June 2025). Summaries are labelled as written by software and not checked against the source.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input getFilingInput) (*mcp.CallToolResult, any, error) {
 		data, err := client.GetFiling(ctx, input.ID)
 		if err != nil {
 			return errorResult("Error fetching filing: " + err.Error()), nil, nil
 		}
 		return textResult(formatFiling(data)), nil, nil
-	})
-
-	wrapAddTool(s, &mcp.Tool{
-		Name:        "search_positions",
-		Description: "Search LLM-extracted policy arguments across COMMENT / REPLY / PETITION filings. Filter by docket, overall stance, argument type, target party, filer, or filing date. Use this to answer questions like 'who opposed X?', 'what did SpaceX argue in 25-306?', 'which filings support modular satellite licensing?'. Returns one row per (filing, argument).",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input searchPositionsInput) (*mcp.CallToolResult, any, error) {
-		params := map[string]string{
-			"docket":        input.Docket,
-			"stance":        input.Stance,
-			"argument_type": input.ArgumentType,
-			"position":      input.Position,
-			"target_party":  input.TargetParty,
-			"filer":         input.Filer,
-			"q":             input.Query,
-			"filed_after":   input.FiledAfter,
-			"filed_before":  input.FiledBefore,
-		}
-		if input.Limit > 0 {
-			params["limit"] = strconv.Itoa(input.Limit)
-		}
-		data, err := client.SearchPositions(ctx, params)
-		if err != nil {
-			return errorResult("Error searching positions: " + err.Error()), nil, nil
-		}
-		return textResult(formatPositionSearch(data)), nil, nil
 	})
 
 	wrapAddTool(s, &mcp.Tool{
@@ -1535,62 +1469,6 @@ func formatFiling(data json.RawMessage) string {
 			fmt.Fprintf(&b, "_%s._\n\n", strings.TrimSuffix(*f.SummaryLabel, "."))
 		}
 		fmt.Fprintf(&b, "%s\n", *f.Summary)
-	}
-
-	if f.LongForm != nil && f.LongForm.ExecutiveSummary != "" {
-		b.WriteString("\n## Executive Summary\n")
-		b.WriteString(f.LongForm.ExecutiveSummary)
-		b.WriteString("\n")
-		if f.LongForm.WordCount != nil && f.LongForm.ReadingTimeMin != nil {
-			fmt.Fprintf(&b, "\n_%d words, ~%d min read._\n", *f.LongForm.WordCount, *f.LongForm.ReadingTimeMin)
-		}
-	}
-
-	if f.Position != nil {
-		b.WriteString("\n## Position\n")
-		if f.Position.OverallStance != nil {
-			fmt.Fprintf(&b, "**Stance:** %s", *f.Position.OverallStance)
-		}
-		if f.Position.Tone != nil {
-			fmt.Fprintf(&b, " | **Tone:** %s", *f.Position.Tone)
-		}
-		if f.Position.Confidence != nil {
-			fmt.Fprintf(&b, " | **Confidence:** %.2f", *f.Position.Confidence)
-		}
-		b.WriteString("\n")
-		if f.Position.PrimaryRecommendation != nil && *f.Position.PrimaryRecommendation != "" {
-			fmt.Fprintf(&b, "\n**Primary recommendation:** %s\n", *f.Position.PrimaryRecommendation)
-		}
-		if len(f.Position.RuleCitations) > 0 {
-			fmt.Fprintf(&b, "\n**Rule citations:** %s\n", strings.Join(f.Position.RuleCitations, "; "))
-		}
-	}
-
-	if len(f.Arguments) > 0 {
-		b.WriteString("\n## Arguments\n")
-		b.WriteString("| Type | Position | Argument | Target party | Page | Conf |\n")
-		b.WriteString("|------|----------|----------|--------------|------|------|\n")
-		showArgs := f.Arguments
-		if len(showArgs) > 20 {
-			showArgs = showArgs[:20]
-		}
-		for _, a := range showArgs {
-			conf := "-"
-			if a.Confidence != nil {
-				conf = strconv.FormatFloat(*a.Confidence, 'f', 2, 64)
-			}
-			fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n",
-				deref(a.ArgumentType), deref(a.Position),
-				truncate(a.ArgumentText, 100),
-				deref(a.TargetParty),
-				derefInt(a.SourcePage),
-				conf,
-			)
-		}
-		if len(f.Arguments) > 20 {
-			fmt.Fprintf(&b, "\n_... and %d more arguments. Use `search_positions` to filter further._\n", len(f.Arguments)-20)
-		}
-		b.WriteString("\n_Arguments are LLM-extracted from the filing. Verify quoted text against the source document before citing._\n")
 	}
 
 	if len(f.SpectrumData) > 0 {
@@ -2509,44 +2387,4 @@ type positionSearchRow struct {
 	TargetParty           *string  `json:"target_party"`
 	SourcePage            *int     `json:"source_page"`
 	Confidence            *float64 `json:"confidence"`
-}
-
-func formatPositionSearch(data json.RawMessage) string {
-	var resp struct {
-		Results []positionSearchRow `json:"results"`
-		Total   int                 `json:"total"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return "Error parsing position search response: " + err.Error()
-	}
-
-	var b strings.Builder
-	if len(resp.Results) == 0 {
-		return "No policy arguments match the search criteria.\n"
-	}
-
-	fmt.Fprintf(&b, "Position search results (%d arguments)\n\n", resp.Total)
-	b.WriteString("| Filing ID | Filed | Docket | Filer | Stance | Type | Position | Argument | Target party | Page | Conf |\n")
-	b.WriteString("|-----------|-------|--------|-------|--------|------|----------|----------|--------------|------|------|\n")
-	for _, r := range resp.Results {
-		conf := "-"
-		if r.Confidence != nil {
-			conf = strconv.FormatFloat(*r.Confidence, 'f', 2, 64)
-		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			r.FilingID,
-			deref(r.FiledDate),
-			deref(r.DocketNumber),
-			truncate(deref(r.Applicant), 30),
-			deref(r.OverallStance),
-			deref(r.ArgumentType),
-			deref(r.Position),
-			truncate(r.ArgumentText, 80),
-			truncate(deref(r.TargetParty), 20),
-			derefInt(r.SourcePage),
-			conf,
-		)
-	}
-	b.WriteString("\n_Arguments are LLM-extracted. Page numbers may be approximate. Use `get_filing_detail` with the filing ID for verbatim source quotes._\n")
-	return b.String()
 }

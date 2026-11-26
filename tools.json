@@ -9,11 +9,7 @@
   },
   {
     "name": "get_filing_detail",
-    "desc": "Get full details of a specific regulatory filing, by UUID or agency file number, including spectrum data, orbital parameters, ground stations, signals, related filings, attachments, and (for policy filings) executive summary, overall stance, and structured arguments."
-  },
-  {
-    "name": "search_positions",
-    "desc": "Search LLM-extracted policy arguments across COMMENT / REPLY / PETITION filings. Filter by docket, overall stance, argument type, target party, filer, or filing date. Use this to answer questions like 'who opposed X?', 'what did SpaceX argue in 25-306?', 'which filings support modular satellite licensing?'. Returns one row per (filing, argument)."
+    "desc": "Get full details of a specific regulatory filing, by UUID or agency file number: dates, parties, documents, related filings, and for FCC earth-station filings the spectrum and sites from the FCC's own record (through June 2025). Summaries are labelled as written by software and not checked against the source."
   },
   {
     "name": "search_semantic",

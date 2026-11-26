@@ -55,7 +55,7 @@ func newServer(client *APIClient) *mcp.Server {
 2. When a field shows "-" or is absent, say "not available in database" — do NOT guess or fill in from general knowledge.
 3. Always cite the filing ID or entity ID when making claims about specific filings or entities.
 4. If a search returns no results, say "No matching data found in the Orbit Sentinel database." You MAY point the user to the authoritative external source for that data category (a bare pointer only — no claims about what they will find there).
-5. Confidence levels (HIGH/MEDIUM/LOW) indicate extraction reliability. Flag LOW confidence data explicitly when presenting it.
+5. Spectrum and earth-station rows come from the FCC's own record (IBFS, through June 2025) and carry that source; say so when you use them. Summaries are written by software and not checked against the source: say so when you rely on one, and prefer the filing's documents.
 6. This database does NOT cover: FCC experimental licenses (ELS), FCC terrestrial licenses (ULS), NOAA remote sensing licenses (CRSRA), or NTIA federal spectrum assignments. Say so when relevant, and refer the user to the authoritative source (e.g. NOAA's Office of Space Commerce for CRSRA) without asserting any facts about its contents.
 7. Do not characterize a filing as someone's "first" or "only" filing unless the database search confirms no earlier filings exist.
 8. Do not invent acronyms or abbreviations not present in the data.

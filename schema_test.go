@@ -93,8 +93,8 @@ func TestSchemaTextMatchesAPIBehavior(t *testing.T) {
 	if !strings.Contains(se["country"], "name") {
 		t.Errorf("search_entities.country does not say it accepts a country name: %q", se["country"])
 	}
-	if q := props["search_positions"]["q"]; !strings.Contains(q, "every word") || strings.Contains(q, "Substring") {
-		t.Errorf("search_positions.q does not describe all-words matching: %q", q)
+	if _, ok := props["search_positions"]; ok {
+		t.Errorf("search_positions is still registered; the API withdrew positions on 2026-11-26")
 	}
 	gs := props["search_ground_stations"]
 	if gs["state"] == "" || !strings.Contains(gs["group_by"], "state") || !strings.Contains(gs["group_by"], "operator") {

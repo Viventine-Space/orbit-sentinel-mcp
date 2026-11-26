@@ -157,18 +157,6 @@
     "limit"
   ],
   "/api/v1/milestones/summary": [],
-  "/api/v1/positions/search": [
-    "argument_type",
-    "docket",
-    "filed_after",
-    "filed_before",
-    "filer",
-    "limit",
-    "position",
-    "q",
-    "stance",
-    "target_party"
-  ],
   "/api/v1/runs": [
     "limit"
   ],
