@@ -48,7 +48,7 @@ func newServer(client *APIClient) *mcp.Server {
 			Version: version,
 		},
 		&mcp.ServerOptions{
-			Instructions: `Orbit Sentinel: 950K+ space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST.
+			Instructions: `Orbit Sentinel: 190,000+ space regulatory filings and public comments from the FCC, ITU, UNOOSA and FAA.
 
 ## CRITICAL RULES — follow these without exception
 1. ONLY state facts that appear in tool results. Never infer dates, names, acronyms, or relationships not in the data. This ban covers "general knowledge" asides too — labeling a claim as "outside the database" does NOT make it permissible. Never state outside-knowledge facts about any entity, filing, sanctions/export-control designation, or event. (Model memory misattributes exactly these details — e.g. which list an entity is on.)
