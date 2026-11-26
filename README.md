@@ -9,8 +9,11 @@
 [![MCP Badge](https://lobehub.com/badge/mcp/viventine-space-orbit-sentinel-mcp)](https://lobehub.com/mcp/viventine-space-orbit-sentinel-mcp)
 
 MCP (Model Context Protocol) server for [Orbit Sentinel](https://www.viventine.com/orbit-sentinel/) —
-950K+ space regulatory filings from FCC, ITU, UNOOSA, and FAA-AST,
-queryable from Claude Desktop, Claude Code, Cursor, or any MCP client.
+190,000+ space regulatory filings and public comments, with 300,000+ documents,
+from the FCC, ITU, UNOOSA and FAA, queryable from Claude Desktop, Claude Code,
+Cursor, or any MCP client.
+
+Orbit Sentinel is not endorsed or certified by the FCC or any other agency.
 
 An API key is required. Beta access: <https://console.viventine.com>.
 

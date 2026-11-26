@@ -250,15 +250,6 @@ func TestBondPortfolioFAAByOperator(t *testing.T) {
 	}
 }
 
-// search_positions rows carry the filing id and date the footer tells the
-// model to use (SpaceBench sweep 10-31 O11).
-func TestPositionSearchShowsFiling(t *testing.T) {
-	out := formatPositionSearch(json.RawMessage(`{"total":1,"results":[{"filing_id":"f-1","filed_date":"2025-04-02","docket_number":"25-306","argument_text":"x"}]}`))
-	if !strings.Contains(out, "| f-1 | 2025-04-02 | 25-306 |") {
-		t.Errorf("row lacks filing id and date:\n%s", out)
-	}
-}
-
 // The filing detail shows the summary's label and the source of each spectrum
 // and site row, and no longer talks about extraction or confidence.
 func TestFormatFilingShowsSourceAndSummaryLabel(t *testing.T) {

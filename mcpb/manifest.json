@@ -3,8 +3,8 @@
   "name": "orbit-sentinel-mcp",
   "display_name": "Orbit Sentinel",
   "version": "0.0.0-stamped-at-release",
-  "description": "Search 950K+ space regulatory filings from the FCC, ITU, UNOOSA, and FAA-AST.",
-  "long_description": "Orbit Sentinel provides 22 tools over 950K+ space regulatory filings from the FCC, ITU, UNOOSA, and FAA-AST: semantic search, entity dossiers (filings + SEC + sanctions screening), spectrum-band holdings, launch licenses, and filing trends and distributions. A thin open-source (MIT) stdio client of the Orbit Sentinel REST API. Get a free beta API key via magic-link signup at https://console.viventine.com.",
+  "description": "Search 190,000+ space regulatory filings and comments from the FCC, ITU, UNOOSA and FAA.",
+  "long_description": "Orbit Sentinel provides 21 tools over 190,000+ space regulatory filings and public comments, with 300,000+ documents, from the FCC, ITU, UNOOSA and FAA: semantic search, entity dossiers (filings + SEC + sanctions screening), spectrum ranges from the FCC's own records (through June 2025), launch licenses, and filing trends and distributions. A thin open-source (MIT) stdio client of the Orbit Sentinel REST API. Get a free beta API key via magic-link signup at https://console.viventine.com. Not endorsed or certified by the FCC or any other agency.",
   "author": {
     "name": "Viventine Space Systems LLC",
     "url": "https://www.viventine.com/"

@@ -31,12 +31,12 @@ func registerPrompts(s *mcp.Server, client *APIClient) {
 		prompt := fmt.Sprintf(`You are a space regulatory analyst examining a filing from the Orbit Sentinel database. Analyze the following filing and provide:
 
 1. **Regulatory Context**: What type of authorization is being sought and from which agency? What regulatory framework applies?
-2. **Technical Parameters**: Key spectrum allocations, orbital parameters, and ground station details. Are there any unusual or noteworthy technical aspects?
+2. **Technical Parameters**: Frequency ranges and earth-station sites from the FCC's own record, where the filing has one (through June 2025). Are there any unusual or noteworthy technical aspects?
 3. **Compliance Assessment**: Does the filing appear complete? Are there any missing elements that would typically be required?
-4. **Potential Conflicts**: Based on the spectrum bands and orbital parameters, could this filing conflict with existing operations?
+4. **Potential Conflicts**: Based on the frequency ranges in the record, could this filing conflict with existing operations?
 5. **Market Implications**: What does this filing suggest about the applicant's plans and competitive positioning?
 
-IMPORTANT: Base your analysis ONLY on the data provided below. Do not add dates, names, acronyms, or facts from general knowledge. If a field is missing or shows "-", state it is not available in the database. Cite the filing ID when referencing this filing. Flag any LOW confidence extracted data explicitly.
+IMPORTANT: Base your analysis ONLY on the data provided below. Do not add dates, names, acronyms, or facts from general knowledge. If a field is missing or shows "-", state it is not available in the database. Cite the filing ID when referencing this filing. Say where each technical value comes from (the FCC record or a document), and treat software-written summaries as unchecked.
 
 ---
 
@@ -88,12 +88,12 @@ Provide analysis covering:
 
 1. **Entity Overview**: Who is this entity? What is their role in the space industry?
 2. **Filing Activity**: How active are they in regulatory filings? What agencies do they file with most?
-3. **Spectrum Holdings**: What frequency bands and orbital slots are they pursuing or holding?
+3. **Spectrum**: Which frequency ranges does the FCC's own record show in their filings (through June 2025)?
 4. **Recent Activity**: Any notable recent filings or changes in their regulatory strategy?
 5. **Related Entities**: Who are their subsidiaries, partners, or frequent co-filers?
 6. **Competitive Position**: How do they compare to competitors operating in similar spectrum bands or orbital regimes?
 
-IMPORTANT: Base your analysis ONLY on the data provided below. Do not add dates, names, acronyms, or facts from general knowledge. If a field is missing or shows "-", state it is not available in the database. Cite the entity ID when referencing this entity. Flag any LOW confidence data explicitly.
+IMPORTANT: Base your analysis ONLY on the data provided below. Do not add dates, names, acronyms, or facts from general knowledge. If a field is missing or shows "-", state it is not available in the database. Cite the entity ID when referencing this entity. Say where each technical value comes from (the FCC record or a document), and treat software-written summaries as unchecked.
 
 ---
 

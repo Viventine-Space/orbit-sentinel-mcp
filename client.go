@@ -320,12 +320,6 @@ func (c *APIClient) GetEntityProfile(ctx context.Context, id string, params ...m
 	return c.doGet(ctx, path)
 }
 
-// SearchPositions calls GET /api/v1/positions/search with query parameters.
-// Returns LLM-extracted policy arguments filtered by docket / stance / filer.
-func (c *APIClient) SearchPositions(ctx context.Context, params map[string]string) (json.RawMessage, error) {
-	return c.doGet(ctx, buildPath("/api/v1/positions/search", params))
-}
-
 // GetStatus calls GET /status.
 func (c *APIClient) GetStatus(ctx context.Context) (json.RawMessage, error) {
 	return c.doGet(ctx, "/status")
